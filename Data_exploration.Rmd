@@ -1,0 +1,74 @@
+---
+title: "NSF Graduate Student Data Exploration"
+author: "Qi Wang"
+date: "2023-09-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+library(openxlsx)
+library(dplyr)
+library(nlme)
+library(ggplot2)
+```
+
+# Data introduction
+
+In each file, there are three sheets, recording the race, support and postdoctoral. Each sheet contains a unique combination of year, school_id, and gss_code. These ID information are replicated in each sheet in each file, meaning that we are researching the same bunch of schools, the only difference is the variables. 
+
+There is a version of 2017 called "2017old" since in 2017 they adjusted some criteria.Due to these changes, the 2017 data are not comparable to prior years. A set of bridge estimates was created to permit comparisons to previous years and for trend analyses.
+
+To begin with, I will first go further into the first sheet of each file and make it as an example about data wrangling for further reference.
+
+```{r}
+get_data <- function(var_name_old, var_name_new, sheet){
+  # Since there is a data collection method change in 2017, so var_name_old should be the previous variable name, and the var_name_new should be the name after 2017. There is a sheet recording the equivalent names for them.
+  ID_variables <- c(
+    "institution_id","school_id","UNITID","year", "Institution_Name","hdg_inst","toc_code", "institution_state", "hbcu_flag","land_grant_flag","carnegie_code_1994","carnegie_code_2005","carnegie_code_2010","carnegie_code_2015","full_school_name","school_name","school_zip","school_type_code","gss_code","hdg_code"
+  )
+  
+  all_sheet<- vector("list")
+  selected_mat <-  vector("list")
+for (i in 1:50) {
+  print( paste("Now retrieving data of year: ",i+1971))
+    all_sheet[[i]] <- read.xlsx( paste("D:/77/UCSC/study/Reasearch/temp/NSF_dat/NSF_grad/gss",1971+i,"_Code.xlsx", sep = ""), sheet = sheet)
+    if(1971+i <= 2016){selected_mat[[i]] <- all_sheet[[i]][,c(ID_variables, var_name_old)]}
+    else{selected_mat[[i]] <- all_sheet[[i]][,c(ID_variables, var_name_new)]}
+}
+  final_mat <- bind_rows(selected_mat)
+  return(final_mat)
+}
+
+
+dat <- get_data("ft_tot_all_races_v", "ft_tot_all_races_v", "Race")
+
+```
+
+```{r}
+use_dat <- dat[-which(dat$UNITID==999999),c("school_id","year","gss_code","ft_tot_all_races_v")]
+
+# summed_dat <- aggregate( ft_tot_all_races_v ~  school_id + gss_code + year, data = use_dat, FUN = function(x) sum(x, na.rm = TRUE))
+
+sch_gss <- paste(as.character(use_dat$school_id), as.character(use_dat$gss_code))
+
+final_dat <- data.frame("ID" = sch_gss, "year" = as.numeric(use_dat$year), "y" = as.numeric(use_dat$ft_tot_all_races_v))
+example_index <- sample(unique(final_dat$ID), 50, replace = FALSE)
+final_dat_ex <- final_dat[final_dat$ID %in% example_index, ]
+```
+
+
+```{r}
+ggplot(data = final_dat_ex, aes(x = year, y = y, group = ID, color = ID)) +
+  geom_line() +
+  labs(x = "year", y = "y", title = "Time Series Plot by School ID and GSS Code") +
+  theme_minimal() + 
+  scale_x_continuous(breaks = 1972:2021) + 
+  theme(legend.position = "none")
+
+
+```
+
+
+

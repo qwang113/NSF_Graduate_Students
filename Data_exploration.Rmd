@@ -12,6 +12,9 @@ library(openxlsx)
 library(dplyr)
 library(nlme)
 library(ggplot2)
+library(maps)
+library(gifski)
+library(gganimate)
 ```
 
 # Data introduction
@@ -55,42 +58,44 @@ for (i in 1:50) {
 
 
 dat <- get_data("ft_tot_all_races_v", "ft_tot_all_races_v", "Race")
-na.schools <- dat$NAschools
-coordinates <- data.frame(
-  School = c(
-    "George Peabody College for Teachers",
-    "Institute of Textile Technology",
-    "Medical College of Pennsylvania, The",
-    "US International University",
-    "Institute of Paper Science & Technology",
-    "Atlanta University",
-    "Medical College of Georgia",
-    "Woods Hole Oceanographic Institution",
-    "Univ of Med and Dentistry of New Jersey",
-    "Polytechnic University"
-  ),
-  Longitude = c(
-    -86.799152, -78.918341, -75.170725, -117.161087, -84.408927, -84.381822, -82.331129, -70.645207, -74.176053, -73.986827
-  ),
-  Latitude = c(
-    36.146895, 35.905047, 39.958812, 32.777416, 33.778813, 33.748995, 33.474349, 41.527565, 40.730610, 40.694185
-  )
-
-)
+# na.schools <- dat$NAschools
+# coordinates <- data.frame(
+#   School = c(
+#     "George Peabody College for Teachers",
+#     "Institute of Textile Technology",
+#     "Medical College of Pennsylvania, The",
+#     "US International University",
+#     "Institute of Paper Science & Technology",
+#     "Atlanta University",
+#     "Medical College of Georgia",
+#     "Woods Hole Oceanographic Institution",
+#     "Univ of Med and Dentistry of New Jersey",
+#     "Polytechnic University"
+#   ),
+#   Longitude = c(
+#     -86.799152, -78.918341, -75.170725, -117.161087, -84.408927, -84.381822, -82.331129, -70.645207, -74.176053, -73.986827
+#   ),
+#   Latitude = c(
+#     36.146895, 35.905047, 39.958812, 32.777416, 33.778813, 33.748995, 33.474349, 41.527565, 40.730610, 40.694185
+#   )
+# 
+# )
 
 # There are schools without UNITID, hard to merge, continue merging or omit them?
 # What data should we finally use? Full recorded? All years?
-
+# After 2017, more variables are added, how to handle those? Ignore?
 ```
 
 ```{r}
-use_dat <- dat[-which(dat$UNITID==999999),c("school_id","year","gss_code","ft_tot_all_races_v")]
+use_dat <- dat$DAT[-which(dat$DAT$UNITID==999999),c("school_id","year","gss_code","ft_tot_all_races_v","long","lat")]
+tem = spBayes::pointsInPoly(as.matrix(map_data("usa", region = "main")[,1:2]),cbind(use_dat$long, use_dat$lat))
 
 # summed_dat <- aggregate( ft_tot_all_races_v ~  school_id + gss_code + year, data = use_dat, FUN = function(x) sum(x, na.rm = TRUE))
+use_dat <- use_dat[tem,]
+sch_gss <- paste(as.character(use_dat$school_id), as.character(use_dat$gss_code))[tem]
 
-sch_gss <- paste(as.character(use_dat$school_id), as.character(use_dat$gss_code))
-
-final_dat <- data.frame("ID" = sch_gss, "year" = as.numeric(use_dat$year), "y" = as.numeric(use_dat$ft_tot_all_races_v))
+final_dat <- data.frame("ID" = sch_gss, "year" = as.numeric(use_dat$year), "y" = as.numeric(use_dat$ft_tot_all_races_v),
+                        "long" = use_dat$long, "lat" = use_dat$lat)
 example_index <- sample(unique(final_dat$ID), 50, replace = FALSE)
 final_dat_ex <- final_dat[final_dat$ID %in% example_index, ]
 ```
@@ -101,12 +106,29 @@ ggplot(data = final_dat_ex, aes(x = year, y = y, group = ID, color = ID)) +
   geom_line() +
   labs(x = "year", y = "y", title = "Time Series Plot by School ID and GSS Code") +
   theme_minimal() + 
-  scale_x_continuous(breaks = 1972:2021) + 
-  theme(legend.position = "none")
-
-
+  scale_x_continuous(breaks = seq(from = 1972, to = 2021, by = 2)) + 
+  theme(legend.position = "none") +
+  theme(plot.title = element_text(hjust = 0.5))  
 ```
 
+```{r}
+us_map <- map_data("state")
+gif_students <-
+ggplot() +
+geom_path(data = us_map, aes(x = long, y = lat, group = group), color = "red") +
+geom_point(data = final_dat, aes(x = long, y = lat, color = y, size = y, group = year)) + 
+scale_colour_gradientn(colours = hcl.colors(10), na.value = "red", limits = c(0, quantile(final_dat$y, 0.975))) +
+transition_time(year) +  
+labs(title = 'Year: {frame_time}') +
+coord_fixed(ratio = 1.1) + 
+theme(plot.title = element_text(hjust = 0.5))  +
+theme_void()
+
+num_years <- diff(range(final_dat$year)) + 1
+
+anim_save("example1.gif", animation = animate(gif_students, nframes = num_years, fps = 2, width = 1500, height = 900), path = here::here())
+
+```
 
 
 

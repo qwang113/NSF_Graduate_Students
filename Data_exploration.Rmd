@@ -84,23 +84,27 @@ dat <- get_data("ft_tot_all_races_v", "ft_tot_all_races_v", "Race")
 # There are schools without UNITID, hard to merge, continue merging or omit them?
 # What data should we finally use? Full recorded? All years?
 # After 2017, more variables are added, how to handle those? Ignore?
+
+# 1. find the complete data
+# 2. fit some models. ts model, countts
+# 3. one step ahead prediction mse for several years
+## 4. add jitters to the plot
 ```
 
 ```{r}
 use_dat <- dat$DAT[-which(dat$DAT$UNITID==999999),c("school_id","year","gss_code","ft_tot_all_races_v","long","lat")]
 tem = spBayes::pointsInPoly(as.matrix(map_data("usa", region = "main")[,1:2]),cbind(use_dat$long, use_dat$lat))
-
 # summed_dat <- aggregate( ft_tot_all_races_v ~  school_id + gss_code + year, data = use_dat, FUN = function(x) sum(x, na.rm = TRUE))
 use_dat <- use_dat[tem,]
 sch_gss <- paste(as.character(use_dat$school_id), as.character(use_dat$gss_code))[tem]
-
 final_dat <- data.frame("ID" = sch_gss, "year" = as.numeric(use_dat$year), "y" = as.numeric(use_dat$ft_tot_all_races_v),
                         "long" = use_dat$long, "lat" = use_dat$lat)
-example_index <- sample(unique(final_dat$ID), 50, replace = FALSE)
+example_index <- sample(unique(final_dat$ID), 20, replace = FALSE)
 final_dat_ex <- final_dat[final_dat$ID %in% example_index, ]
 ```
 
-
+Then I made a gif plot with instructions here:
+https://conservancy.umn.edu/bitstream/handle/11299/220339/time-maps-tutorial-v2.html?sequence=3&isAllowed=y
 ```{r}
 ggplot(data = final_dat_ex, aes(x = year, y = y, group = ID, color = ID)) +
   geom_line() +
@@ -110,8 +114,10 @@ ggplot(data = final_dat_ex, aes(x = year, y = y, group = ID, color = ID)) +
   theme(legend.position = "none") +
   theme(plot.title = element_text(hjust = 0.5))  
 ```
+https://conservancy.umn.edu/bitstream/handle/11299/220339/time-maps-tutorial-v2.html?sequence=3&isAllowed=y
 
 ```{r}
+
 us_map <- map_data("state")
 gif_students <-
 ggplot() +

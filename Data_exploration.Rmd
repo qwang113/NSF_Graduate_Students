@@ -10,11 +10,13 @@ rm(list = ls())
 knitr::opts_chunk$set(echo = TRUE)
 library(openxlsx)
 library(dplyr)
+library(tidyr)
 library(nlme)
 library(ggplot2)
 library(maps)
 library(gifski)
 library(gganimate)
+library(reshape2)
 ```
 
 # Data introduction
@@ -92,50 +94,61 @@ dat <- get_data("ft_tot_all_races_v", "ft_tot_all_races_v", "Race")
 ```
 
 ```{r}
-use_dat <- dat$DAT[-which(dat$DAT$UNITID==999999),c("school_id","year","gss_code","ft_tot_all_races_v","long","lat")]
+use_dat <- dat$DAT[-which(dat$DAT$UNITID==999999),c("UNITID","Institution_Name", "year","gss_code","ft_tot_all_races_v","long","lat")]
 tem = spBayes::pointsInPoly(as.matrix(map_data("usa", region = "main")[,1:2]),cbind(use_dat$long, use_dat$lat))
 # summed_dat <- aggregate( ft_tot_all_races_v ~  school_id + gss_code + year, data = use_dat, FUN = function(x) sum(x, na.rm = TRUE))
 use_dat <- use_dat[tem,]
-sch_gss <- paste(as.character(use_dat$school_id), as.character(use_dat$gss_code))[tem]
-final_dat <- data.frame("ID" = sch_gss, "year" = as.numeric(use_dat$year), "y" = as.numeric(use_dat$ft_tot_all_races_v),
+sch_gss <- as.numeric(paste(as.character(use_dat$UNITID), as.character(use_dat$gss_code), sep = ""))
+final_dat <- data.frame("ID" = sch_gss,"col_sch" = paste(use_dat$Institution_Name, use_dat$gss_code, sep = "_") ,"year" = as.numeric(use_dat$year), "y" = as.numeric(use_dat$ft_tot_all_races_v),
                         "long" = use_dat$long, "lat" = use_dat$lat)
-example_index <- sample(unique(final_dat$ID), 20, replace = FALSE)
-final_dat_ex <- final_dat[final_dat$ID %in% example_index, ]
+# example_index <- sample(unique(final_dat$ID), 20, replace = FALSE)
+# final_dat_ex <- final_dat[final_dat$ID %in% example_index, ]
 ```
 
 Then I made a gif plot with instructions here:
 https://conservancy.umn.edu/bitstream/handle/11299/220339/time-maps-tutorial-v2.html?sequence=3&isAllowed=y
 ```{r}
-ggplot(data = final_dat_ex, aes(x = year, y = y, group = ID, color = ID)) +
-  geom_line() +
-  labs(x = "year", y = "y", title = "Time Series Plot by School ID and GSS Code") +
-  theme_minimal() + 
-  scale_x_continuous(breaks = seq(from = 1972, to = 2021, by = 2)) + 
-  theme(legend.position = "none") +
-  theme(plot.title = element_text(hjust = 0.5))  
+# ggplot(data = final_dat_ex, aes(x = year, y = y, group = ID, color = ID)) +
+#   geom_line() +
+#   labs(x = "year", y = "y", title = "Time Series Plot by School ID and GSS Code") +
+#   theme_minimal() + 
+#   scale_x_continuous(breaks = seq(from = 1972, to = 2021, by = 2)) + 
+#   theme(legend.position = "none") +
+#   theme(plot.title = element_text(hjust = 0.5))  
 ```
 https://conservancy.umn.edu/bitstream/handle/11299/220339/time-maps-tutorial-v2.html?sequence=3&isAllowed=y
 
 ```{r}
 
-us_map <- map_data("state")
-gif_students <-
-ggplot() +
-geom_path(data = us_map, aes(x = long, y = lat, group = group), color = "red") +
-geom_point(data = final_dat, aes(x = long, y = lat, color = y, size = y, group = year)) + 
-scale_colour_gradientn(colours = hcl.colors(10), na.value = "red", limits = c(0, quantile(final_dat$y, 0.975))) +
-transition_time(year) +  
-labs(title = 'Year: {frame_time}') +
-coord_fixed(ratio = 1.1) + 
-theme(plot.title = element_text(hjust = 0.5))  +
-theme_void()
-
-num_years <- diff(range(final_dat$year)) + 1
-
-anim_save("example1.gif", animation = animate(gif_students, nframes = num_years, fps = 2, width = 1500, height = 900), path = here::here())
+# us_map <- map_data("state")
+# gif_students <-
+# ggplot() +
+# geom_path(data = us_map, aes(x = long, y = lat, group = group), color = "red") +
+# geom_point(data = final_dat, aes(x = long, y = lat, color = y, size = y, group = year)) + 
+# scale_colour_gradientn(colours = hcl.colors(10), na.value = "red", limits = c(0, quantile(final_dat$y, 0.975))) +
+# transition_time(year) +  
+# labs(title = 'Year: {frame_time}') +
+# coord_fixed(ratio = 1.1) + 
+# theme(plot.title = element_text(hjust = 0.5))  +
+# theme_void()
+# 
+# num_years <- diff(range(final_dat$year)) + 1
+# 
+# anim_save("example1.gif", animation = animate(gif_students, nframes = num_years, fps = 2, width = 1500, height = 900), path = here::here())
 
 ```
+# Find the Complete Data
 
+```{r}
+
+all_schools <- unique(final_dat$ID)
+stay <- rep(NA, length(all_schools))
+for (i in 1:length(all_schools)) {
+  stay[i] <- length(which(final_dat$ID==all_schools[i])) == 50
+}
+stay_schools <- unique(final_dat$ID)[stay]
+stay_dat <- final_dat[final_dat$ID %in% stay_schools, ]
+```
 
 
 

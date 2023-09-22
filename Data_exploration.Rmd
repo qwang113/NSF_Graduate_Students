@@ -38,14 +38,14 @@ get_data <- function(var_name_old, var_name_new, sheet){
   selected_mat <-  vector("list")
 for (i in 1:50) {
   print( paste("Now retrieving data of year: ",i+1971))
-    all_sheet[[i]] <- read.xlsx( paste("D:/77/UCSC/study/Reasearch/temp/NSF_dat/NSF_grad/gss",1971+i,"_Code.xlsx", sep = ""), sheet = sheet)
+    all_sheet[[i]] <- read.xlsx( paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_grad/gss",1971+i,"_Code.xlsx", sep = ""), sheet = sheet)
     if(1971+i <= 2016){selected_mat[[i]] <- all_sheet[[i]][,c(ID_variables, var_name_old)]}
     else{selected_mat[[i]] <- all_sheet[[i]][,c(ID_variables, var_name_new)]}
 }
   
 # Add coordinates
   final_mat <- bind_rows(selected_mat)
-  col_coords <- read.csv("D:/77/UCSC/study/Reasearch/temp/NSF_dat/ins_loc.csv", header = TRUE)
+  col_coords <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/ins_loc.csv", header = TRUE)
   id_coords <- data.frame("UNITID" = as.character(col_coords$UNITID) , "long" = as.numeric(col_coords$LONGITUDE), "lat" = as.numeric(col_coords$LATITUDE))
   out <- left_join(final_mat, id_coords, by = "UNITID")
   
@@ -148,6 +148,7 @@ for (i in 1:length(all_schools)) {
 }
 stay_schools <- unique(final_dat$ID)[stay]
 stay_dat <- final_dat[final_dat$ID %in% stay_schools, ]
+write.csv(stay_dat, "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final.csv", row.names = FALSE)
 ```
 
 

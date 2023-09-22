@@ -1,0 +1,27 @@
+---
+title: "One Step Ahead MSE"
+author: "Qi"
+date: "2023-09-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tscount)
+nsf_dat <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final.csv", header = TRUE)
+```
+
+
+```{r}
+uni_id <- unique(nsf_dat$ID)
+
+model_1 <- tsglm(ts = nsf_dat$y[which(nsf_dat$ID==uni_id[1])], link = "log", distr = "poisson", model = list(past_obs = 1:5))
+
+summary(model_1)
+
+# predict(model_1, n.ahead = 12)
+
+
+```
+

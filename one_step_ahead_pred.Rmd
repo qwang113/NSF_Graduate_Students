@@ -22,6 +22,7 @@ for (i in 1: length(uni_id)) {
   print(paste("Now doing index ", i, "among",length(uni_id)))
   
   for (j in 1:10) {
+      curr_AIC <- rep(NA, 10)
       model_temp <- tsglm(ts = nsf_dat$y[which(nsf_dat$ID==uni_id[i])], link = "log", distr = "poisson", model = list(past_obs = 1:j))
       curr_AIC[j] <- summary(model_temp)$AIC
   }

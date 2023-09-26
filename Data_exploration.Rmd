@@ -144,7 +144,8 @@ https://conservancy.umn.edu/bitstream/handle/11299/220339/time-maps-tutorial-v2.
 all_schools <- unique(final_dat$ID)
 stay <- rep(NA, length(all_schools))
 for (i in 1:length(all_schools)) {
-  stay[i] <- length(which(final_dat$ID==all_schools[i])) == 50
+  stay[i] <- length( unique( final_dat$year[which(final_dat$ID==all_schools[i])] ) ) == 50 & 
+    length( final_dat$year[which(final_dat$ID==all_schools[i])] ) == 50
 }
 stay_schools <- unique(final_dat$ID)[stay]
 stay_dat <- final_dat[final_dat$ID %in% stay_schools, ]

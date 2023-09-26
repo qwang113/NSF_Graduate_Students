@@ -15,10 +15,9 @@ nsf_dat <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final.csv", head
 
 
 ```{r}
-uni_id <- unique(nsf_dat$ID)
+uni_id <- unique(nsf_dat$ID)[-c(583,1699,1805,1806,1807,1808)]
 model_order <- rep(NA, length(uni_id))
-
-for (i in c(1:length(uni_id))[-c(588,1711,1817,1818,1819,1820,1901,1904,1908)] ) {
+for (i in c(1:length(uni_id)) ) {
   
   print(paste("Now doing index ", i, "among",length(uni_id)))
   curr_AIC <- rep(NA, 5)
@@ -31,8 +30,9 @@ for (i in c(1:length(uni_id))[-c(588,1711,1817,1818,1819,1820,1901,1904,1908)] )
 
 model_order_idx <- data.frame("ID" = uni_id, "order" = model_order)
 order_dat <- left_join(nsf_dat, model_order_idx, by = "ID")
-college_id = as.numeric(substr(data_with_order$ID,1,6))
-final_data_with_order <- as.data.frame(cbind(na.omit(order_dat), college_id))
+
+college_id = as.numeric(substr(order_dat$ID,1,6))
+final_data_with_order <- as.data.frame(na.omit(cbind(order_dat, college_id)))
 
 write.csv(final_data_with_order, "D:/77/UCSC/study/Research/temp/NSF_dat/graduate_students_final.csv", row.names = FALSE)
 

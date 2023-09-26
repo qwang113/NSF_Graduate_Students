@@ -11,7 +11,7 @@ rm(list = ls())
 library(dplyr)
 library(tscount)
 nsf_dat <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/graduate_students_final.csv", header = TRUE)
-nsf_dat <- nsf_dat[-which(nsf_dat$ID %in% c(123961603,160755615,163259611,163259613)),]
+# nsf_dat <- nsf_dat[-which(nsf_dat$ID %in% c(123961603,160755615,163259611,163259613)),]
 ```
 
 
@@ -41,6 +41,9 @@ for (i in uni_id) {
 # nsf_dat[which(nsf_dat$ID==uni_id[62] & nsf_dat$year == 2008),]
 # nsf_dat[which(nsf_dat$ID==uni_id[417] & nsf_dat$year == 1982),]
 # nsf_dat[which(nsf_dat$ID==uni_id[453] & nsf_dat$year == 1974),]
+
+write.csv(one_step_ahead_pred, "D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_pred.csv")
+write.csv(one_step_ahead_resid, "D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_res.csv")
 ```
 
 

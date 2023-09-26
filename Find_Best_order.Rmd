@@ -1,0 +1,52 @@
+---
+title: "Find Best Order"
+author: "Qi"
+date: "2023-09-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(dplyr)
+library(tscount)
+nsf_dat <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final.csv", header = TRUE)
+```
+
+
+```{r}
+uni_id <- unique(nsf_dat$ID)
+model_order <- rep(NA, length(uni_id))
+
+for (i in c(1:length(uni_id))[-c(588,1711,1817,1818,1819,1820,1901,1904,1908)] ) {
+  
+  print(paste("Now doing index ", i, "among",length(uni_id)))
+  curr_AIC <- rep(NA, 5)
+  for (j in 1:5) {
+      model_temp <- tsglm(ts = nsf_dat$y[which(nsf_dat$ID==uni_id[i])], link = "log", distr = "poisson", model = list(past_obs = 1:j))
+      curr_AIC[j] <- summary(model_temp)$AIC
+  }
+  model_order[i] <- which.min(curr_AIC)
+}
+
+model_order_idx <- data.frame("ID" = uni_id, "order" = model_order)
+order_dat <- left_join(nsf_dat, model_order_idx, by = "ID")
+college_id = as.numeric(substr(data_with_order$ID,1,6))
+final_data_with_order <- as.data.frame(cbind(na.omit(order_dat), college_id))
+
+write.csv(final_data_with_order, "D:/77/UCSC/study/Research/temp/NSF_dat/graduate_students_final.csv", row.names = FALSE)
+
+
+
+# I omitted 9*50 data since they return NA and cannot be regressed using tscount
+
+# predict(model_1, n.ahead = 12)
+
+# Too many zeros for some school, like i = 588,1711,1817,1818,1819,1820,1901,1904,1908
+# Zero-inflated Poisson distribution, mixture poisson with point mass at 0?
+
+
+```
+
+
+

@@ -1,0 +1,12 @@
+---
+title: "MSE Exploration"
+author: "Qi Wang"
+date: "2023-09-26"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+one_step_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_pred.csv", header = TRUE)[,-1]
+one_step_res <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_res.csv", header = TRUE)[,-1]
+```
+

@@ -6,7 +6,26 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
+rm(list = ls())
+library(ggplot2)
+
+
 one_step_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_pred.csv", header = TRUE)[,-1]
 one_step_res <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_res.csv", header = TRUE)[,-1]
+
+colnames(one_step_pred) <- 2000:2021
+colnames(one_step_res) <- 2000:2021
 ```
+```{r}
+ggplot() +
+  geom_path(aes(x = 2000:2021, y = apply(one_step_res^2,2,mean) )) +
+  # coord_cartesian(ylim = c(250, 1500)) + 
+  labs(y = "MSE", x = "year")
+
+tsglm(ts = nsf_dat$y[which(nsf_dat$ID==uni_id[28]& nsf_dat$year <= 2005)], link = "log", distr = "poisson",
+      model = list(past_obs = 1:model_order[idx]))
+
+
+```
+
 

@@ -1,0 +1,8 @@
+1. A good plot with some introductions, evaluations of RNN.
+
+https://www.analyticsvidhya.com/blog/2022/03/a-brief-overview-of-recurrent-neural-networks-rnn/
+
+
+2. Realization of RNN in Keras in R
+
+https://www.kaggle.com/code/rtatman/beginner-s-intro-to-rnn-s-in-r

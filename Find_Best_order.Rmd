@@ -10,13 +10,18 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list = ls())
 library(dplyr)
 library(tscount)
-nsf_dat <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final.csv", header = TRUE)
+nsf_dat <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
+nsf_dat_w <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 ```
 
 
 ```{r}
-uni_id <- unique(nsf_dat$ID)[-c(583,1699,1805,1806,1807,1808)]
+uni_id <- unique(nsf_dat$ID)
+nsf_dat_w[ nsf_dat_w$ID %in% uni_id[c(573,1686,1792:1795)], ]
+
+uni_id <-unique(nsf_dat$ID)[-c(573,1686,1792:1795)]
 model_order <- rep(NA, length(uni_id))
+
 for (i in c(1:length(uni_id)) ) {
   
   print(paste("Now doing index ", i, "among",length(uni_id)))

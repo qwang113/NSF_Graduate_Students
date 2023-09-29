@@ -22,9 +22,6 @@ ggplot() +
   # coord_cartesian(ylim = c(250, 1500)) + 
   labs(y = "MSE", x = "year")
 
-tsglm(ts = nsf_dat$y[which(nsf_dat$ID==uni_id[28]& nsf_dat$year <= 2005)], link = "log", distr = "poisson",
-      model = list(past_obs = 1:model_order[idx]))
-
 
 ```
 

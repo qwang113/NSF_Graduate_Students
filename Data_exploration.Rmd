@@ -114,17 +114,22 @@ for (i in 1:length(all_schools)) {
 stay_schools <- unique(final_dat$ID)[stay]
 stay_dat_long <- final_dat[final_dat$ID %in% stay_schools, ]
 stay_dat_wide <- dcast(as.data.frame(stay_dat_long), ID + long + lat ~ year, value.var = "y")
-
-filtered_ID <- stay_dat_wide$ID[which(rowSums(stay_dat_wide[,-c(1:3)])==0)]
-stay_dat_wide <- stay_dat_wide[-which(rowSums(stay_dat_wide[,-c(1:3)])==0),]
-
-long_omit_rows <- which(stay_dat_long$ID %in% filtered_ID)
-stay_dat_long <- stay_dat_long[-long_omit_rows,]
+exist_0_ID <- stay_dat_wide$ID[which( rowSums( stay_dat_wide[,-c(1:3)] == 0 ) != 0 )]
 
 
 
-write.csv(as.data.frame(stay_dat_long), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", row.names = FALSE)
-write.csv(as.data.frame(stay_dat_wide), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", row.names = FALSE)
+# filtered_ID <- stay_dat_wide$ID[which(rowSums(stay_dat_wide[,-c(1:3)])==0)]
+# stay_dat_wide <- stay_dat_wide[-which(rowSums(stay_dat_wide[,-c(1:3)])==0),]
+
+long_omit_rows <- which(stay_dat_long$ID %in% exist_0_ID)
+
+stay_dat_wide_final <- stay_dat_wide[-which(stay_dat_wide$ID %in% exist_0_ID),]
+stay_dat_long_final <- stay_dat_long[-long_omit_rows,]
+
+
+
+write.csv(as.data.frame(stay_dat_long_final), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", row.names = FALSE)
+write.csv(as.data.frame(stay_dat_wide_final), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", row.names = FALSE)
 ```
 
 

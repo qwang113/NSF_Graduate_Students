@@ -17,9 +17,9 @@ nsf_dat_w <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv
 
 ```{r}
 uni_id <- unique(nsf_dat$ID)
-nsf_dat_w[ nsf_dat_w$ID %in% uni_id[c(573,1686,1792:1795)], ]
+# nsf_dat_w[ nsf_dat_w$ID %in% uni_id[c(573,1686,1792:1795)], ]
 
-uni_id <-unique(nsf_dat$ID)[-c(573,1686,1792:1795)]
+# uni_id <-unique(nsf_dat$ID)[-c(573,1686,1792:1795)]
 model_order <- rep(NA, length(uni_id))
 
 for (i in c(1:length(uni_id)) ) {
@@ -42,13 +42,6 @@ final_data_with_order <- as.data.frame(na.omit(cbind(order_dat, college_id)))
 write.csv(final_data_with_order, "D:/77/UCSC/study/Research/temp/NSF_dat/graduate_students_final.csv", row.names = FALSE)
 
 
-
-# I omitted 9*50 data since they return NA and cannot be regressed using tscount
-
-# predict(model_1, n.ahead = 12)
-
-# Too many zeros for some school, like i = 588,1711,1817,1818,1819,1820,1901,1904,1908
-# Zero-inflated Poisson distribution, mixture poisson with point mass at 0?
 
 
 ```

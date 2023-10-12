@@ -9,6 +9,8 @@ output: pdf_document
 rm(list = ls())
 library(ggplot2)
 
+nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
+nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
 
 one_step_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_pred.csv", header = TRUE)[,-1]
 one_step_res <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_res.csv", header = TRUE)[,-1]
@@ -24,5 +26,18 @@ ggplot() +
 
 
 ```
+
+
+
+```{r}
+# Check how many data are zero for each institution:
+
+nsf_wide_y <- nsf_wide[,-c(1:3)]
+zero_count <- rowSums(nsf_wide_y == 0) 
+
+table(zero_count)
+
+```
+
 
 

@@ -34,8 +34,11 @@ ggplot() +
 ```
 
 ```{r}
-var()
+var(unlist(as.vector(y)))
+var(unlist(as.vector(one_step_pred)))
 ```
+
+
 
 
 

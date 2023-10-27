@@ -48,16 +48,15 @@ te_dat <- sim_dat[(tr_dat_len+1):nrow(sim_dat),]
 
 
 x_tr <-  array_reshape(tr_dat[,2:ncol(tr_dat)], c(1,tr_dat_len,2)) 
-y_tr <-  array_reshape(tr_dat[,1], c(tr_dat_len,1)) 
+y_tr <-  array_reshape(tr_dat[,1], c(1,tr_dat_len)) 
 x_te <- array_reshape(te_dat[,2:ncol(te_dat)], c(1,te_dat_len,2)) 
-y_te <- array_reshape(te_dat[,1], c(te_dat_len,1)) 
+y_te <- array_reshape(te_dat[,1], c(1,te_dat_len)) 
 
-toy_model <- keras_model_sequential()
-
-toy_model %>% 
-  layer_simple_rnn(units = 2, activation = "relu", dropout = 0.2, input_shape = dim(x_tr) )%>%
+toy_model <- keras_model_sequential() %>%
+  layer_simple_rnn(units = 200, activation = "relu",input_shape = dim(x_tr)[2:3] )%>%
+  layer_dense(units = 200) %>%
   layer_dense(units = 1, activation = "linear") %>%
-  compile(loss = "mse",optimizer = "sgd", metrics = list("mse"))
+  compile(loss = "mse",optimizer = "adam", metrics = list("mse"))
 
 model_checkpoint <- callback_model_checkpoint(
   filepath = "D:/77/research/temp/best_weights.h5",
@@ -69,8 +68,8 @@ model_checkpoint <- callback_model_checkpoint(
 
 
 toy_model_tr <- toy_model %>%
-  fit(x = x_tr, y = y_tr, epochs = 1000, batch_size = 2000, 
-      validation_data = list(x_te, y_te) , callbacks = list(model_checkpoint))
+  fit(x = x_tr, y = y_tr, epochs = 1000, batch_size = 500, 
+      validation_data = list(x_tr, y_tr) , callbacks = list(model_checkpoint))
 
 
 

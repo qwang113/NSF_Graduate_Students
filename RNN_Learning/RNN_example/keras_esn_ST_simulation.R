@@ -149,24 +149,45 @@ convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
 convoluted_res3 <- predict(st_model_res_3,basis_arr_3)
 
 conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,,,],convoluted_res2[1,,,],convoluted_res3[1,,,])))
-
+pb <- txtProgressBar(min = 1, max = length(long), style = 3)
 for (i in 1:length(long)) {
+  setTxtProgressBar(pb, i)
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,,,]),as.vector(convoluted_res2[i,,,]),as.vector(convoluted_res3[i,,,]))
 }
 
 # Begin recurrent part
 
+zero_col <- which(colSums(conv_covar)==0)
+conv_covar <- conv_covar[,-zero_col]
+
+
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
-relu <- function(x){if(x <=0){return(0)}else{return(x)}}
-scaled_cov <- apply(cbind(covariates, conv_covar), 2, min_max_scale) 
+# relu <- function(x){if(x <=0){return(0)}else{return(x)}}
+scaled_cov <- apply(conv_covar, 2, min_max_scale) 
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 200 # Number of hidden units in RNN
-nx <- ncol(covariates) + ncol(scaled_cov) # Number of covariates
+nh <- 2000 # Number of hidden units in RNN
+nx <- ncol(scaled_cov) # Number of covariates
 a <- 0.1# The range of the standard uniform distribution of the weights
 
+H <- vector("list", length = time_step)
+W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
+U <- matrix(runif(nh*nx, -a,a), nrow = nh, ncol = nx)
 
+ux <- apply(t(U%*%t(scaled_cov)), c(1,2), tanh)
+H[[1]] <- ux
 
+Y <- st_dat[[1]][,"y"]
+H_all <- H[[1]]
 
+pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
+for (i in 2:time_step) {
+  setTxtProgressBar(pb,i)
+  H[[i]] <- apply(H[[i-1]]%*%W + ux, c(1,2), tanh)
+  Y <- c(Y, st_dat[[i]][,"y"])
+  H_all <- rbind(H_all, H[[i]])
+}
+ridge_lambda <- cv.glmnet(H, ar_2, alpha = 0)$lambda.min
+final_model <- glmnet(H, ar_2, alpha = 0, lambda = ridge_lambda)
 
-
+st_esn <- lm(Y~H_all)

@@ -36,9 +36,9 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 X <- apply(X, 2, min_max_scale) 
 # set hyperparameters
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 2000 # Number of hidden units in RNN
+nh <- 200 # Number of hidden units in RNN
 nx <- ncol(X) # Number of covariates
-a <- 1# The range of the standard uniform distribution of the weights
+a <- 0.1# The range of the standard uniform distribution of the weights
 H <- matrix(NA, nrow = length(Y), ncol = nh)
 W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
 U <- matrix(runif(nh*nx, -a,a), nrow = nh, ncol = nx)
@@ -51,7 +51,10 @@ for (i in 2:length(Y)) {
 H <- apply(H, 2, min_max_scale)
 ridge_lambda <- cv.glmnet(H, ar_2, alpha = 0)$lambda.min
 final_model <- glmnet(H, ar_2, alpha = 0, lambda = ridge_lambda)
-pred_y <- predict(final_model,H)
+pred_y_ridge <- predict(final_model,H)
+
+pred_y_lm <- predict(lm(Y~H))
+
 
 # Plot the series out
 p1<-
@@ -60,15 +63,21 @@ ggplot() +
   ylim(100, 250)
 p2<-
 ggplot() +
-  geom_path(aes(x = 1:5000, y = pred_y), color = "red")+
+  geom_path(aes(x = 1:5000, y = pred_y_ridge), color = "red")+
   ylim(100, 250)
-cowplot::plot_grid(p1,p2)
+p3<-
+  ggplot() +
+  geom_path(aes(x = 1:5000, y = pred_y_lm), color = "pink")+
+  ylim(100, 250)
+
+cowplot::plot_grid(p1,p2,p3, nrow = 1)
 # Residual Plot
 ggplot() +
-  geom_point(aes(x = 1:5000, y = residuals(Echo_State_Network)), color = "black")
+  geom_point(aes(x = 1:5000, y = residuals(lm(Y~H))), color = "black")
 
+summary(lm(Y~H))
 
-acf_values <- acf(residuals(Echo_State_Network))
+acf_values <- acf(ar_2-pred_y)
 # Residual ACF
 acf_df <- data.frame(lag = acf_values$lag, acf = acf_values$acf)
 ggplot(acf_df, aes(x = lag, y = acf)) +

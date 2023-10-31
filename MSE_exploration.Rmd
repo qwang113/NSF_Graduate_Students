@@ -14,29 +14,33 @@ nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv"
 
 one_step_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_pred.csv", header = TRUE)[,-1]
 one_step_res <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/one_step_ahead_res.csv", header = TRUE)[,-1]
-nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)[,-1]
 
-y <- nsf_wide[,(ncol(nsf_wide)-21):ncol(nsf_wide)]
-
-colnames(one_step_pred) <- 2000:2021
-colnames(one_step_res) <- 2000:2021
-colnames(y) <- 2000:2021
-```
-```{r}
-ggplot() +
-  geom_point(aes(x = 2000:2021, y = apply(one_step_res^2,2,mean) )) +
-  # coord_cartesian(ylim = c(250, 1500)) + 
-  labs(y = "MSE", x = "year")
-
-ggplot() +
-  geom_point(aes(x = unlist(as.vector(y)), y = unlist(as.vector(one_step_res))))
 
 ```
+
 
 ```{r}
-var(unlist(as.vector(y)))
-var(unlist(as.vector(one_step_pred)))
+stanford_wide <- nsf_wide[which(nsf_wide$ID =="243744403"),]
+missouri_wide <- nsf_wide[which(nsf_wide$ID =="178396403"),]
+stanford_long <- nsf_long[which(nsf_long$ID =="243744403"),]
+missouri_long <- nsf_long[which(nsf_long$ID =="178396403"),]
+p_stanford <- ggplot() +
+  geom_line(aes(x = stanford_long$year, y = stanford_long$y), linewidth = 2) +
+   geom_point(aes(x = stanford_long$year, y = stanford_long$y), color = "red", size = 2) +
+  labs(title = "Time Series of Stanford University Statistics Graduate Students", x = "Time", y = "Count") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+p_missouri <- ggplot() +
+  geom_line(aes(x = missouri_long$year, y = missouri_long$y), linewidth = 2) +
+   geom_point(aes(x = missouri_long$year, y = missouri_long$y), color = "red", size = 2) +
+  labs(title = "Time Series ofUniversity of Missouri(Columbia) Statistics Graduate Students", x = "Time", y = "Count") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
 ```
+
+
 
 
 

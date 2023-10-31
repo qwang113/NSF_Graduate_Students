@@ -23,17 +23,17 @@ for (i in 1:length(uni_id)) {
   model_order[i] <- unique(nsf_dat$order[which(nsf_dat$ID==uni_id[i])])
 }
 
-one_step_ahead_pred <- matrix(NA, nrow = length(uni_id), ncol = length(1999:2020))
-one_step_ahead_resid <- matrix(NA, nrow = length(uni_id), ncol = length(1999:2020))
+one_step_ahead_pred <- matrix(NA, nrow = length(uni_id), ncol = length(1972:2020))
+one_step_ahead_resid <- matrix(NA, nrow = length(uni_id), ncol = length(1972:2020))
 
 idx = 1
 for (i in uni_id) {
   print(paste("Now doing index ", idx, "out of",length(uni_id)))
-  for (j in 1999:2020) {
+  for (j in 1972:2020) {
     model_temp <- tsglm(ts = nsf_dat$y[which(nsf_dat$ID==uni_id[idx])], link = "log", distr = "poisson",
                         model = list(past_obs = 1:model_order[idx]))
-    one_step_ahead_pred[idx,j-1998] <- predict(model_temp, n.ahead = 1)$pred
-    one_step_ahead_resid[idx,j-1998] <- nsf_dat$y[which(nsf_dat$ID==uni_id[idx] & nsf_dat$year == j+1)] - one_step_ahead_pred[idx,j-1998]
+    one_step_ahead_pred[idx,j-1971] <- predict(model_temp, n.ahead = 1)$pred
+    one_step_ahead_resid[idx,j-1971] <- nsf_dat$y[which(nsf_dat$ID==uni_id[idx] & nsf_dat$year == j+1)] - one_step_ahead_pred[idx,j-1971]
   }
       idx = idx + 1
 }

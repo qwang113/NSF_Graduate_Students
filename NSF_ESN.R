@@ -9,6 +9,7 @@ library(keras)
 library(reticulate)
 library(tensorflow)
 library(glmnet)
+library(MASS)
 use_condaenv("tf_gpu")
 # Gaussian Process with Matern Correlation
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
@@ -97,7 +98,7 @@ my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -0.1, maxval = 0.1, dtype = dtype))
 }
 
-num_filters <- 200
+num_filters <- 100
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
@@ -120,56 +121,61 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,,,]),as.vector(convoluted_res2[i,,,]),as.vector(convoluted_res3[i,,,]))
 }
 
+rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d, basis_use_2_2d, basis_use_3_2d, convoluted_res1,convoluted_res2,convoluted_res3)
 # Begin recurrent part
 
 zero_col <- which(colSums(conv_covar)==0)
 conv_covar <- conv_covar[,-zero_col]
 
 
+
+
+
+
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
-# relu <- function(x){if(x <=0){return(0)}else{return(x)}}
-scaled_cov <- apply(conv_covar, 2, min_max_scale) 
+
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 200 # Number of hidden units in RNN
-nx <- ncol(scaled_cov) # Number of covariates
+nh <- 2000 # Number of hidden units in RNN
+nx <- ncol(conv_covar) # Number of covariates
 a <- 0.1# The range of the standard uniform distribution of the weights
-nu <- 0.5
+nu <- 0.8
 time_step <- length(unique(nsf_long$year))
 
-H <- vector("list", length = time_step)
 W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-U <- matrix(runif(nh*nx, -a,a), nrow = nh, ncol = nx)
+U <- matrix(runif(nh*nx, -a,a), nrow = nx, ncol = nh)
+ar_col <- matrix(runif(nh,-a,a), nrow = 1)
 lambda_scale <- max(abs(eigen(W)$values))
 
-ux <- apply(t(U%*%t(scaled_cov)), c(1,2), tanh)
-H[[1]] <- ux
+ux <- apply(conv_covar%*%U, c(1,2), tanh)
 
-Y <- nsf_wide[,1:4]
-H_all <- H[[1]]
+curr_H <- ux
+
+Y <- nsf_wide[,4]
+
+
+
 
 pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
 for (i in 2:time_step) {
   setTxtProgressBar(pb,i)
-  H[[i]] <- apply( nu/lambda_scale*H[[i-1]]%*%W + ux, c(1,2), tanh)
+  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
   Y <- c(Y, nsf_wide[,i+3])
-  H_all <- rbind(H_all, H[[i]])
+  curr_H <- rbind(curr_H, new_H)
 }
 
+ write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
 
-glm_CRESN <- glm.nb(Y~H_all)
+
+glm_CRESN <- glm.nb(Y~curr_H)
+
 CRESN_res <- glm_CRESN$residuals
 
-year_stack <- length(rep(1972:2021, each = 50))
+year_stack <- rep(1972:2021, each = nrow(nsf_wide))
 school_ID <- rep(nsf_wide$ID,50)
 long_stack <- rep(nsf_wide$long,50)
 lat_stack <- rep(nsf_wide$long,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res.csv", row.names = FALSE)
-
-ridge_lambda <- cv.glmnet(H, Y, alpha = 0)$lambda.min
-final_model <- glmnet(H, ar_2, alpha = 0, lambda = ridge_lambda)
-
-st_esn <- lm(Y~H_all)
+write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_filter100.csv", row.names = FALSE)

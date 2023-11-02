@@ -167,7 +167,7 @@ for (i in 2:time_step) {
  write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
 
 
-glm_CRESN <- glm.nb(Y~curr_H)
+glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
 
 CRESN_res <- glm_CRESN$residuals
 
@@ -178,4 +178,4 @@ lat_stack <- rep(nsf_wide$long,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_filter100.csv", row.names = FALSE)
+write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_filter100_50step.csv", row.names = FALSE)

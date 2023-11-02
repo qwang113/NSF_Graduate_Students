@@ -174,7 +174,7 @@ CRESN_res <- glm_CRESN$residuals
 year_stack <- rep(1972:2021, each = nrow(nsf_wide))
 school_ID <- rep(nsf_wide$ID,50)
 long_stack <- rep(nsf_wide$long,50)
-lat_stack <- rep(nsf_wide$long,50)
+lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 

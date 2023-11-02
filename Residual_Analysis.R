@@ -66,3 +66,21 @@ for (curr_ID in nsf_wide$ID) {
   
 }
 
+for (curr_year in 1972:2021) {
+  us_map <- map_data("state")
+  res_sur <-
+    ggplot() + theme_bw() +
+    theme(legend.title=element_blank(),legend.key.width=unit(2,'cm'),legend.position='bottom') +
+    geom_point(aes(x=jitter(res_wide$long, amount = 0.5),y=jitter(res_wide$lat, amount = 0.5),colour=res_wide[,4+curr_year-1972]),size=1,shape=19) +
+    scale_colour_gradientn(colours = hcl.colors(10)) +
+    geom_path(data = us_map, aes(x = long, y = lat, group = group), color = "red") +
+    coord_fixed(ratio = 1.1) +
+    labs(title = paste("Spatial Map of Residuals of Year",curr_year), x = "Longitude",y = "Latitude") + 
+    theme(plot.title = element_text(hjust = 0.5)) 
+  ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_res_map_2000_filter100/",curr_year,"_res.png", sep = ""), res_sur)
+}
+
+
+
+
+

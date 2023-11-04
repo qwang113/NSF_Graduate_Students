@@ -164,6 +164,8 @@ for (i in 2:time_step) {
   curr_H <- rbind(curr_H, new_H)
 }
 
+pca_H <- prcomp(curr_H)
+pca_var <-predict(pca_H)
  write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
 
 

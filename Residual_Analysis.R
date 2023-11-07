@@ -3,6 +3,7 @@ library(ggplot2)
 library(fields)
 library(sp)
 library(geoR)
+library(gstat)
 res_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_filter100_50step.csv")
 res_wide <- dcast(res_all, ID + long + lat ~ year, value.var = "Residuals")
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
@@ -88,13 +89,18 @@ nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv"
 # Variogram
 
 curr_year <- 1972
+long <- jitter(nsf_wide$long)
+lat <- jitter(nsf_wide$lat)
 for (curr_year in 1973:2021) {
   par(mfrow = c(1,2))
-  nsf_coords <- data.frame("long" = nsf_wide$long, "lat" = nsf_wide$lat)
-  curr_y <- nsf_wide[,curr_year-1968]
-  prev_y <- nsf_wide[,curr_year-1969]
-  plot(variog(coords = nsf_coords, data = curr_y-prev_y), main = curr_year)
-  plot(variog4(coords = jitter(as.matrix(nsf_coords)), data = curr_y-prev_y)) 
+  curr_dat <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1968])
+  prev_dat <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1969])
+  diff_dat <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1968] - nsf_wide[,curr_year-1969])
+  coordinates(curr_dat) <- ~ long + lat
+  coordinates(diff_dat) <- ~ long + lat
+  var1 <- variogram(y ~ long + lat, data = diff_dat, width = 0.3)
+  fit.variogram(var1, model = vgm(10, "Mat", nugget = 1000, range = 0.1))
+  
 }
 
 

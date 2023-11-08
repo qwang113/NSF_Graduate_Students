@@ -100,7 +100,7 @@ my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -0.1, maxval = 0.1, dtype = dtype))
 }
 
-num_filters <- 200
+num_filters <- 300
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
@@ -124,8 +124,8 @@ st_model_res_3 <- keras_model_sequential() %>%
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer) %>%
   layer_flatten() %>%
-  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")%>%
-  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")
+  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")%>%
+  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")
 
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
@@ -197,4 +197,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_complex+univ_added.csv", row.names = FALSE)
+write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res2000_complex+univ_added.csv", row.names = FALSE)

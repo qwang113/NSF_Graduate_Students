@@ -1,3 +1,4 @@
+rm(list = ls())
 library(reshape2)
 library(ggplot2)
 library(fields)
@@ -9,6 +10,19 @@ res_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_comple
 res_wide <- dcast(res_all, ID + long + lat ~ year, value.var = "Residuals")
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
+long <- jitter(nsf_wide$long)
+lat <- jitter(nsf_wide$lat)
+ymat <- nsf_wide[,-(1:3)]
+nsf_wide$long <- long
+nsf_wide$lat <- lat
+
+coordinates(nsf_wide) = ~ long + lat
+coords <- nsf_wide@coords
+
+
+ 
+#MSE: 0.0725
+
 
 # Get the residuals for schools individually, time series residuals
 # 
@@ -89,8 +103,34 @@ nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv"
 
 # Variogram
 
+for (i in 1:49) {
+  
+  v1 <- variog(coords = coords, data = ymat[,i+1], uvec = seq(0,100,length = 50))
+  v1F <- variofit(v1, cov.model = "matern")
+  plot(v1, xlab="Distance", main= paste("Semivariogram of Observation for Year", i+1972)) 
+  lines(v1F)
+  abline(h=v1F$nugget, col="blue")
+  abline(h=v1F$cov.pars[1] + v1F$nugget, col="green")
+  abline(v=-log(0.05)*v1F$cov.pars[2], col="red")
+  
+}
+
+
+
+
+res_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_complex+univ_added.csv")
+res_wide <- dcast(res_all, ID + long + lat ~ year, value.var = "Residuals")
+nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
+nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
 long <- jitter(nsf_wide$long)
 lat <- jitter(nsf_wide$lat)
+ymat <- nsf_wide[,-(1:3)]
+nsf_wide$long <- long
+nsf_wide$lat <- lat
+
+
+# Moran's I test
+
 moran_obs <- matrix(NA, nrow = length(unique(nsf_long$year)), ncol = 4)
 moran_res <- matrix(NA, nrow = length(unique(nsf_long$year)), ncol = 4)
 moran_diff_obs <- matrix(NA, nrow = length(unique(nsf_long$year))-1, ncol = 4)
@@ -100,6 +140,8 @@ inv_dist <- 1/pair_dist
 diag(inv_dist) <- 0
 moran_obs[1,] <- unlist(Moran.I(nsf_wide[,4], inv_dist))
 moran_res[1,] <- unlist(Moran.I(res_wide[,4], inv_dist))
+
+
 
 
 

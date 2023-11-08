@@ -4,7 +4,8 @@ library(fields)
 library(sp)
 library(geoR)
 library(gstat)
-res_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_complex.csv")
+library(ape)
+res_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_complex+univ_added.csv")
 res_wide <- dcast(res_all, ID + long + lat ~ year, value.var = "Residuals")
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
@@ -135,7 +136,6 @@ for (curr_year in 1973:2021) {
 
 moran_diff_obs <- round(cbind(moran_diff_obs, 1973:2021),5)
 moran_diff_res <- round(cbind(moran_diff_res, 1973:2021),5)
-
 moran_obs <- round(cbind(moran_obs, 1972:2021),5)
 moran_res <- round(cbind(moran_res, 1972:2021),5)
 

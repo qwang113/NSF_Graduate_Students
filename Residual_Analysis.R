@@ -4,7 +4,7 @@ library(fields)
 library(sp)
 library(geoR)
 library(gstat)
-res_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_filter100_50step.csv")
+res_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_complex.csv")
 res_wide <- dcast(res_all, ID + long + lat ~ year, value.var = "Residuals")
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
@@ -88,20 +88,60 @@ nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv"
 
 # Variogram
 
-curr_year <- 1972
 long <- jitter(nsf_wide$long)
 lat <- jitter(nsf_wide$lat)
+moran_obs <- matrix(NA, nrow = length(unique(nsf_long$year)), ncol = 4)
+moran_res <- matrix(NA, nrow = length(unique(nsf_long$year)), ncol = 4)
+moran_diff_obs <- matrix(NA, nrow = length(unique(nsf_long$year))-1, ncol = 4)
+moran_diff_res <- matrix(NA, nrow = length(unique(nsf_long$year))-1, ncol = 4)
+pair_dist <- spDists(cbind(long,lat))
+inv_dist <- 1/pair_dist
+diag(inv_dist) <- 0
+moran_obs[1,] <- unlist(Moran.I(nsf_wide[,4], inv_dist))
+moran_res[1,] <- unlist(Moran.I(res_wide[,4], inv_dist))
+
+
+
+
+i = 1
 for (curr_year in 1973:2021) {
-  par(mfrow = c(1,2))
-  curr_dat <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1968])
-  prev_dat <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1969])
-  diff_dat <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1968] - nsf_wide[,curr_year-1969])
-  coordinates(curr_dat) <- ~ long + lat
-  coordinates(diff_dat) <- ~ long + lat
-  var1 <- variogram(y ~ long + lat, data = diff_dat, width = 0.3)
-  fit.variogram(var1, model = vgm(10, "Mat", nugget = 1000, range = 0.1))
+  par(mfrow = c(2,2))
+  curr_obs <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1968])
+  diff_obs <- data.frame("long" = long, "lat" = lat, "y" = nsf_wide[,curr_year-1968] - nsf_wide[,curr_year-1969])
+  
+  curr_res <- data.frame("long" = long, "lat" = lat, "y" = res_wide[,curr_year-1968])
+  diff_res <- data.frame("long" = long, "lat" = lat, "y" = res_wide[,curr_year-1968] - res_wide[,curr_year-1969])
+  
+  
+  coordinates(curr_obs) <- ~ long + lat
+  coordinates(diff_obs) <- ~ long + lat
+  
+  coordinates(curr_res) <- ~ long + lat
+  coordinates(diff_res) <- ~ long + lat
+  
+  moran_obs[i+1,] <- unlist(Moran.I(curr_obs$y, inv_dist))
+  moran_res[i+1,] <- unlist(Moran.I(curr_res$y, inv_dist))
+  
+  moran_diff_obs[i,] <- unlist(Moran.I(diff_obs$y, inv_dist))
+  moran_diff_res[i,] <- unlist(Moran.I(diff_res$y, inv_dist))
+  
+  
+  
+  i = i + 1
+  # var1 <- variogram(y ~ long + lat, data = diff_dat, width = 0.3)
+  # plot(fit.variogram(var1, model = vgm(1000, "Mat", nugget = 2000, range = 0.1)), cutoff = 10, main = curr_year)
   
 }
+
+moran_diff_obs <- round(cbind(moran_diff_obs, 1973:2021),5)
+moran_diff_res <- round(cbind(moran_diff_res, 1973:2021),5)
+
+moran_obs <- round(cbind(moran_obs, 1972:2021),5)
+moran_res <- round(cbind(moran_res, 1972:2021),5)
+
+
+
+colnames(moran_obs) = colnames(moran_diff_obs) = colnames(moran_res) = colnames(moran_diff_res) <- c("Observed","Expected","Sd","p-value","Year")
 
 
 

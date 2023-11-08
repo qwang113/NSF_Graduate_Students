@@ -98,27 +98,43 @@ my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -0.1, maxval = 0.1, dtype = dtype))
 }
 
-num_filters <- 100
+num_filters <- 200
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
-                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)
+                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)%>%
+  layer_flatten() %>%
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")%>%
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")
+
+
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
-                input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer)
+                input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer)%>%
+  layer_flatten() %>%
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")%>%
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")
+
+
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
-                input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer)
+                input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer) %>%
+  layer_flatten() %>%
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")%>%
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")
+
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
 convoluted_res3 <- predict(st_model_res_3,basis_arr_3)
 
-conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,,,],convoluted_res2[1,,,],convoluted_res3[1,,,])))
+conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,],convoluted_res2[1,],convoluted_res3[1,])))
 pb <- txtProgressBar(min = 1, max = length(long), style = 3)
 for (i in 1:length(long)) {
   setTxtProgressBar(pb, i)
-  conv_covar[i,] <- c(as.vector(convoluted_res1[i,,,]),as.vector(convoluted_res2[i,,,]),as.vector(convoluted_res3[i,,,]))
+  conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
 rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d, basis_use_2_2d, basis_use_3_2d, convoluted_res1,convoluted_res2,convoluted_res3)
@@ -126,11 +142,6 @@ rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d,
 
 zero_col <- which(colSums(conv_covar)==0)
 conv_covar <- conv_covar[,-zero_col]
-
-
-
-
-
 
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
@@ -153,9 +164,6 @@ curr_H <- ux
 
 Y <- nsf_wide[,4]
 
-
-
-
 pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
 for (i in 2:time_step) {
   setTxtProgressBar(pb,i)
@@ -164,8 +172,8 @@ for (i in 2:time_step) {
   curr_H <- rbind(curr_H, new_H)
 }
 
-pca_H <- prcomp(curr_H)
-pca_var <-predict(pca_H)
+# pca_H <- prcomp(curr_H)
+# pca_var <-predict(pca_H)
  write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
 
 
@@ -180,4 +188,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_filter100_50step.csv", row.names = FALSE)
+write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_res2000_complex.csv", row.names = FALSE)

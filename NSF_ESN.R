@@ -96,11 +96,19 @@ for (i in 1:nrow(coords@coords)) {
 }
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
+a <- 1
+
+# my_custom_initializer <- function(shape, dtype = NULL) {
+#   return(tf$random$uniform(shape, minval = -0.1, maxval = 0.1, dtype = dtype))
+# }
+sig <- 0.8
+
 my_custom_initializer <- function(shape, dtype = NULL) {
-  return(tf$random$uniform(shape, minval = -0.1, maxval = 0.1, dtype = dtype))
+  return(tf$random$normal(shape,mean = 0, stddev = 0.1, dtype = dtype))
 }
 
-num_filters <- 300
+
+num_filters <- 200
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
@@ -153,14 +161,21 @@ nh <- 2000 # Number of hidden units in RNN
 nx_sp <- ncol(conv_covar) # Number of covariates
 nx_dummy <- ncol(dummy_matrix)
 
-a <- 0.1# The range of the standard uniform distribution of the weights
-nu <- 0.8
+# The range of the standard uniform distribution of the weights
+nu <- 0.9
 time_step <- length(unique(nsf_long$year))
 
-W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
-U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
-ar_col <- matrix(runif(nh,-a,a), nrow = 1)
+# W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
+# U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
+# U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
+# ar_col <- matrix(runif(nh,-a,a), nrow = 1)
+
+
+W <- matrix(rnorm(nh^2, sd = sig), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
+U_sp <- matrix(rnorm(nh*nx_sp, sd = sig), nrow = nx_sp, ncol = nh)
+U_dummy <- matrix(rnorm(nh*nx_dummy, sd = sig), nrow = nx_dummy, ncol = nh)
+ar_col <- matrix(rnorm(nh, sd = sig), nrow = 1)
+
 
 lambda_scale <- max(abs(eigen(W)$values))
 
@@ -177,6 +192,7 @@ pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
 for (i in 2:time_step) {
   setTxtProgressBar(pb,i)
   new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
+  # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
   Y <- c(Y, nsf_wide[,i+3])
   curr_H <- rbind(curr_H, new_H)
 }
@@ -197,4 +213,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res2000_complex+univ_added.csv", row.names = FALSE)
+# write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res2000_complex+univ_added+norm01.csv", row.names = FALSE)

@@ -186,7 +186,11 @@ moran_res <- round(cbind(moran_res, 1972:2021),5)
 colnames(moran_obs) = colnames(moran_diff_obs) = colnames(moran_res) = colnames(moran_diff_res) <- c("Observed","Expected","Sd","p-value","Year")
 
 
-
+nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
+write.csv(moran_obs,"D:/77/UCSC/study/Research/temp/NSF_dat/moran_test_Observation.csv", row.names = FALSE)
+write.csv(moran_res,"D:/77/UCSC/study/Research/temp/NSF_dat/moran_test_Residuals.csv", row.names = FALSE)
+write.csv(moran_diff_obs,"D:/77/UCSC/study/Research/temp/NSF_dat/moran_test_Observation_Diff.csv", row.names = FALSE)
+write.csv(moran_diff_res,"D:/77/UCSC/study/Research/temp/NSF_dat/moran_test_Residuals_Diff.csv", row.names = FALSE)
 
 
 

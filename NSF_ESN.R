@@ -96,68 +96,76 @@ for (i in 1:nrow(coords@coords)) {
 }
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
-a <- 1
-
-# my_custom_initializer <- function(shape, dtype = NULL) {
-#   return(tf$random$uniform(shape, minval = -0.1, maxval = 0.1, dtype = dtype))
-# }
-sig <- 0.8
+a <- 0.1
 
 my_custom_initializer <- function(shape, dtype = NULL) {
-  return(tf$random$normal(shape,mean = 0, stddev = 0.1, dtype = dtype))
+  return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
 }
+sig <- 0.9
+
+# my_custom_initializer <- function(shape, dtype = NULL) {
+#   return(tf$random$normal(shape,mean = 0, stddev = 0.1, dtype = dtype))
+# }
 
 
-num_filters <- 200
+num_filters <- 300
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
-                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)%>%
-  layer_flatten() %>%
-  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")%>%
-  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")
+                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  
+  # %>%
+  # layer_flatten() %>%
+  # layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")%>%
+  # layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer)%>%
-  layer_flatten() %>%
-  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")%>%
-  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer)  
+  # %>%
+  # layer_flatten() %>%
+  # layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")%>%
+  # layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>%
-  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")%>%
-  layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "relu")
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer)
+  # %>%
+  # layer_flatten() %>%
+  # layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")%>%
+  # layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "relu")
 
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
 convoluted_res3 <- predict(st_model_res_3,basis_arr_3)
 
-conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,],convoluted_res2[1,],convoluted_res3[1,])))
+conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,,,],convoluted_res2[1,,,],convoluted_res3[1,,,])))
 pb <- txtProgressBar(min = 1, max = length(long), style = 3)
 for (i in 1:length(long)) {
   setTxtProgressBar(pb, i)
-  conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
+  conv_covar[i,] <- c(as.vector(convoluted_res1[i,,,]),as.vector(convoluted_res2[i,,,]),as.vector(convoluted_res3[i,,,]))
 }
 
 rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d, basis_use_2_2d, basis_use_3_2d, convoluted_res1,convoluted_res2,convoluted_res3)
 # Begin recurrent part
+
+
 
 zero_col <- which(colSums(conv_covar)==0)
 conv_covar <- conv_covar[,-zero_col]
 
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
+write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
+
+
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 2000 # Number of hidden units in RNN
+nh <- 5000 # Number of hidden units in RNN
 nx_sp <- ncol(conv_covar) # Number of covariates
 nx_dummy <- ncol(dummy_matrix)
 
@@ -165,16 +173,16 @@ nx_dummy <- ncol(dummy_matrix)
 nu <- 0.9
 time_step <- length(unique(nsf_long$year))
 
-# W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-# U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
-# U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
-# ar_col <- matrix(runif(nh,-a,a), nrow = 1)
+W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
+U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
+U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
+ar_col <- matrix(runif(nh,-a,a), nrow = 1)
 
 
-W <- matrix(rnorm(nh^2, sd = sig), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-U_sp <- matrix(rnorm(nh*nx_sp, sd = sig), nrow = nx_sp, ncol = nh)
-U_dummy <- matrix(rnorm(nh*nx_dummy, sd = sig), nrow = nx_dummy, ncol = nh)
-ar_col <- matrix(rnorm(nh, sd = sig), nrow = 1)
+# W <- matrix(rnorm(nh^2, sd = sig), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
+# U_sp <- matrix(rnorm(nh*nx_sp, sd = sig), nrow = nx_sp, ncol = nh)
+# U_dummy <- matrix(rnorm(nh*nx_dummy, sd = sig), nrow = nx_dummy, ncol = nh)
+# ar_col <- matrix(rnorm(nh, sd = sig), nrow = 1)
 
 
 lambda_scale <- max(abs(eigen(W)$values))
@@ -199,7 +207,7 @@ for (i in 2:time_step) {
 
 # pca_H <- prcomp(curr_H)
 # pca_var <-predict(pca_H)
- # write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
+write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
 
 
 glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
@@ -213,4 +221,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-# write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res2000_complex+univ_added+norm01.csv", row.names = FALSE)
+write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res3000_complex+univ_added+norm01.csv", row.names = FALSE)

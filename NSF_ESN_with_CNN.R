@@ -160,12 +160,12 @@ conv_covar <- conv_covar[,-zero_col]
 
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
-write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
+# write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
 
 
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 5000 # Number of hidden units in RNN
+nh <- 2000 # Number of hidden units in RNN
 nx_sp <- ncol(conv_covar) # Number of covariates
 nx_dummy <- ncol(dummy_matrix)
 
@@ -192,22 +192,22 @@ ux_dummy <- dummy_matrix%*%U_dummy
 
 
 
-curr_H <- ux_sp + ux_dummy
-
+# curr_H <- ux_sp + ux_dummy
+curr_H <- ux_sp
 Y <- nsf_wide[,4]
 
 pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
 for (i in 2:time_step) {
   setTxtProgressBar(pb,i)
-  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
-  # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
+  # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
+  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
   Y <- c(Y, nsf_wide[,i+3])
   curr_H <- rbind(curr_H, new_H)
 }
 
 # pca_H <- prcomp(curr_H)
 # pca_var <-predict(pca_H)
-write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
+# write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_H.csv", row.names = FALSE)
 
 
 glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
@@ -221,4 +221,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, "D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res3000_complex+univ_added+norm01.csv", row.names = FALSE)
+write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", num_filters,"filters_res", nh, ".csv", sep = ""), row.names = FALSE)

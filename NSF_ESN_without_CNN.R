@@ -14,9 +14,10 @@ use_condaenv("tf_gpu")
 # Gaussian Process with Matern Correlation
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
+min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
-nsf_wide$long <- jitter(nsf_wide$long)
-nsf_wide$lat <- jitter(nsf_wide$lat)
+nsf_wide$long <- min_max_scale(jitter(nsf_wide$long))
+nsf_wide$lat <- min_max_scale(jitter(nsf_wide$lat))
 
 coords <- data.frame("long" = nsf_wide$long,"lat" = nsf_wide$lat)
 
@@ -35,7 +36,7 @@ nx_sp <- ncol(coords) # Number of covariates
 # The range of the standard uniform distribution of the weights
 nu <- 0.9
 time_step <- length(unique(nsf_long$year))
-
+a = 0.1
 W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
 U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
 # U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
@@ -50,7 +51,7 @@ ar_col <- matrix(runif(nh,-a,a), nrow = 1)
 
 lambda_scale <- max(abs(eigen(W)$values))
 
-ux_sp <- coords%*%U_sp
+ux_sp <- as.matrix(coords)%*%U_sp
 # ux_dummy <- dummy_matrix%*%U_dummy
 
 
@@ -85,3 +86,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
 write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", "ESN_res", nh, ".csv", sep = ""), row.names = FALSE)
+

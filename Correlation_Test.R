@@ -18,7 +18,7 @@ nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv"
 res_full_model_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res5000_unif01.csv")
 res_full_model_wide <- dcast(res_full_model_all, ID + long + lat ~ year, value.var = "Residuals")
 
-res_no_dummy_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/300filters_res2000.csv")
+res_no_dummy_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/No_dummy_res2000.csv")
 res_no_dummy_wide <- dcast(res_no_dummy_all, ID + long + lat ~ year, value.var = "Residuals")
 
 res_no_CNN_dummy_all <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/No_CNN_res2000.csv")

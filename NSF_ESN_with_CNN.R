@@ -221,4 +221,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", "No_CNN_res", nh, ".csv", sep = ""), row.names = FALSE)
+write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", "No_dummy_res", nh, ".csv", sep = ""), row.names = FALSE)

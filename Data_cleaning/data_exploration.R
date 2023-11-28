@@ -77,7 +77,8 @@ stay_dat_long <- final_dat[final_dat$ID %in% stay_schools, ]
 
 stay_dat_wide <- dcast(as.data.frame(stay_dat_long), ID + long + lat ~ year, value.var = "y")
 
-exclude_0 <- stay_dat_wide[stay_dat_wide$ID %in% agg$ID[which(agg$y >= 30)],]
+agg <- aggregate(data = stay_dat_long, y ~ ID, sum)
+exclude_0 <- stay_dat_wide[stay_dat_wide$ID %in% agg$ID[which(agg$y != 0)],]
 
 table(rowSums(exclude_0[,-c(1:3)]==0))
 
@@ -89,7 +90,6 @@ na_omit_rows <- stay_dat_wide$ID[which( is.na(rowSums( stay_dat_wide[,-c(1:3)] )
 
 
 
-agg <- aggregate(data = stay_dat_long, y ~ ID, sum)
 
 
 

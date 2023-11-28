@@ -131,42 +131,39 @@ num_filters <- 200
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
-                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  
-# %>%
-# layer_flatten() %>%
-# layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")%>%
-# layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
+layer_flatten() %>%
+layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)  
-# %>%
-# layer_flatten() %>%
-# layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")%>%
-# layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)  %>%
+layer_flatten() %>%
+layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)
-# %>%
-# layer_flatten() %>%
-# layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")%>%
-# layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)%>%
+layer_flatten() %>%
+layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
 convoluted_res3 <- predict(st_model_res_3,basis_arr_3)
 
-conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,,,],convoluted_res2[1,,,],convoluted_res3[1,,,])))
+# conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,,,],convoluted_res2[1,,,],convoluted_res3[1,,,])))
+conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,],convoluted_res2[1,],convoluted_res3[1,])))
+
 pb <- txtProgressBar(min = 1, max = length(long), style = 3)
 for (i in 1:length(long)) {
   setTxtProgressBar(pb, i)
-  conv_covar[i,] <- c(as.vector(convoluted_res1[i,,,]),as.vector(convoluted_res2[i,,,]),as.vector(convoluted_res3[i,,,]))
+  # conv_covar[i,] <- c(as.vector(convoluted_res1[i,,,]),as.vector(convoluted_res2[i,,,]),as.vector(convoluted_res3[i,,,]))
+  conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
 rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d, basis_use_2_2d, basis_use_3_2d, convoluted_res1,convoluted_res2,convoluted_res3)
@@ -225,7 +222,7 @@ Y <- nsf_wide[,10]
 pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
 for (i in 2:time_step) {
   setTxtProgressBar(pb,i)
-  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + log(nsf_wide)[,i+8]%*%ar_col, c(1,2), tanh)
+  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + log(nsf_wide[,i+8])%*%ar_col, c(1,2), tanh)
   # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
   Y <- c(Y, nsf_wide[,i+9])
   curr_H <- rbind(curr_H, new_H)
@@ -235,10 +232,12 @@ for (i in 2:time_step) {
 # pca_var <-predict(pca_H)
 # write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_full_model_H.csv", row.names = FALSE)
 
-
-glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
-
-CRESN_res <- glm_CRESN$residuals
+cv_model <-  cv.glmnet(x = curr_H, y = Y, family = "poisson",alpha = 0)
+ridge_cresn <- glmnet(x= curr_H, y = Y, alpha = 0, lambda = cv_model$lambda.min, family = "poisson")
+y_pred <- predict(ridge_cresn, newx = curr_H, s = cv_model$lambda)
+# glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
+# CRESN_res <- glm_CRESN$residuals
+CRESN_res <- Y - y_pred
 
 year_stack <- rep(1972:2021, each = nrow(nsf_wide))
 school_ID <- rep(nsf_wide$ID,50)
@@ -247,4 +246,4 @@ lat_stack <- rep(nsf_wide$lat,50)
 
 res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
 
-write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", "Full_Model+state+Car_res", nh, ".csv", sep = ""), row.names = FALSE)
+write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", "Full_Model+state+Car_res+Ridge", nh, ".csv", sep = ""), row.names = FALSE)

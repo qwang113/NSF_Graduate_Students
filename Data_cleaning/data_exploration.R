@@ -91,8 +91,8 @@ special_cases <- which( rowSums(exclude_0[,-c(1:4)]==0)>5 )
 special_mat <- as.matrix(exclude_0[special_cases,])
 
 
-# write.csv(as.data.frame(exclude_0), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", row.names = FALSE)
-write.csv(as.data.frame(exclude_0[-special_cases,]), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", row.names = FALSE)
+write.csv(as.data.frame(exclude_0), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", row.names = FALSE)
+write.csv(as.data.frame(stay_dat_wide), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", row.names = FALSE)
 
 
 

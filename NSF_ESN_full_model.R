@@ -205,6 +205,11 @@ for (i in 2:time_step) {
 }
 
 curr_H_scaled <- apply(curr_H, 2, min_max_scale)
+
+colnames(curr_H_scaled) <- paste("node", 1:ncol(curr_H_scaled))
+
+# curr_H_scaled <- as.data.frame(curr_H_scaled)
+
 # pca_H <- prcomp(curr_H)
 # pca_var <-predict(pca_H)
 # write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_full_model_H.csv", row.names = FALSE)
@@ -212,6 +217,36 @@ curr_H_scaled <- apply(curr_H, 2, min_max_scale)
 # cv_model <-  cv.glmnet(x = curr_H, y = Y, family = "poisson",alpha = 0)
 # ridge_cresn <- glmnet(x= curr_H, y = Y, alpha = 0, lambda = cv_model$lambda.min, family = "poisson")
 # y_pred <- predict(ridge_cresn, newx = curr_H, s = cv_model$lambda)
+one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2001:2021))
+
+for (i in 2001:2021) {
+  years_before <- i - 1972
+  prev_y <- Y[1:(years_before*nrow(nsf_wide))]
+  prev_H <- data.frame(curr_H_scaled[1:(years_before*nrow(nsf_wide)), ])
+  one_step_ahead_model <- glm.nb(prev_y~., data = cbind(prev_y, prev_H), control = glm.control(epsilon = 1e-8, maxit = 1000, trace = TRUE))
+  pred_H <- curr_H_scaled[c( (years_before*nrow(nsf_wide)+1):((years_before+1)*nrow(nsf_wide)) ), ]
+  # estim_params <- one_step_ahead_model$coefficients
+  # pred_y <- cbind(1,pred_H) %*% matrix(estim_params, ncol = 1)
+  predict(one_step_ahead_model, newdata = data.frame(pred_H))
+  one_step_ahead_pred_y[,i-2000] <- exp(pred_y)
+  
+}
+
+one_step_ahead_res <- nsf_wide[,c(ncol(nsf_wide)-20):ncol(nsf_wide)] - one_step_ahead_pred_y
+
+
+
+
+
+write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred.csv", row.names = FALSE)
+
+
+
+
+
+
+
+
 
 glm_CRESN_scaled <- glm.nb(Y~curr_H_scaled, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
 glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))

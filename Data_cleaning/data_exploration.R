@@ -75,17 +75,43 @@ stay_dat_long <- final_dat[final_dat$ID %in% stay_schools, ]
 # 
 # stay_dat <- aggregate(data = stay_dat, y~., sum)
 
-stay_dat_wide <- dcast(as.data.frame(stay_dat_long), ID + long + lat ~ year, value.var = "y")
+univ_id <- substr(stay_dat_long$ID,1,6)
+sch_id <- substr(stay_dat_long$ID,7,9)
+ID <- paste(univ_id, sch_id, sep = "")
+stay_dat_long <- cbind(univ_id, sch_id, ID, stay_dat_long[,-1])
+sch_name <- data.frame("univ_id" = col_coords$UNITID, "univ_name" = col_coords$INSTNM)
+stay_dat_long <- merge(sch_name, stay_dat_long, by = "univ_id")
+
+stay_dat_wide <- dcast(as.data.frame(stay_dat_long), ID + univ_name + long + lat ~ year, value.var = "y")
 
 agg <- aggregate(data = stay_dat_long, y ~ ID, sum)
-exclude_0 <- stay_dat_wide[stay_dat_wide$ID %in% agg$ID[which(agg$y != 0)],]
+exclude_0 <- stay_dat_wide[stay_dat_wide$ID %in% agg$ID[which(agg$y > 50)],]
 
-table(rowSums(exclude_0[,-c(1:3)]==0))
+special_cases <- which( rowSums(exclude_0[,-c(1:4)]==0)>5 )
+special_mat <- as.matrix(exclude_0[special_cases,])
 
-table(rowSums(stay_dat_wide[,-c(1:3)]==0))
 
-exist_0_ID <- stay_dat_wide$ID[which( rowSums( stay_dat_wide[,-c(1:3)] == 0 ) != 0 )]
-na_omit_rows <- stay_dat_wide$ID[which( is.na(rowSums( stay_dat_wide[,-c(1:3)] )) )]
+# write.csv(as.data.frame(exclude_0), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", row.names = FALSE)
+write.csv(as.data.frame(exclude_0[-special_cases,]), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", row.names = FALSE)
+
+
+
+for (i in 1:nrow(special_mat)) {
+  
+  curr_plot <- 
+    ggplot() +
+    geom_path(aes(x = 1972:2021, y = as.numeric(special_mat[i,-c(1:4)])), linewidth = 2) +
+    labs(x = "Year", y = "Number of Graduate Students", title = paste(special_mat[i,1], special_mat[i,2])) +
+    theme(plot.title = element_text(hjust = 0.5)) + 
+    scale_x_continuous(limits = c(1972,2021), breaks = seq(1972, 2021, 2)) + 
+    theme(plot.title = element_text(face = "bold", size = 25)) 
+  
+  
+    ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_data_cleaning/", gsub("[^A-Za-z0-9_]", "_",paste(special_mat[i,1], special_mat[i,2])), ".png", sep = ""),curr_plot, width = 25, height = 15)
+}
+# table(rowSums(stay_dat_wide[,-c(1:4)]==0))
+# exist_0_ID <- stay_dat_wide$ID[which( rowSums( stay_dat_wide[,-c(1:3)] == 0 ) != 0 )]
+# na_omit_rows <- stay_dat_wide$ID[which( is.na(rowSums( stay_dat_wide[,-c(1:3)] )) )]
 
 
 

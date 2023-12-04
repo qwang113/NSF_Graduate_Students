@@ -16,35 +16,12 @@ nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv"
 UNITID <- substr(nsf_wide$ID,1,6)
 nsf_wide <- cbind(UNITID,nsf_wide)
 
-nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", header = TRUE)
-UNITID <- substr(nsf_long$ID,1,6)
-nsf_long <- cbind(UNITID,nsf_long)
 
-# r1_schools <- cbind(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/R1_univ.csv", header = TRUE)$unitid, "R1")
-# r2_schools <- cbind(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/R2_univ.csv", header = TRUE)$unitid, "R2")
-# # r3_schools <- cbind(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/R3_univ.csv", header = TRUE)$unitid, "Others")
-# colnames(r1_schools) = colnames(r2_schools) = c("UNITID","Tier")
-# tier_infor <- rbind(r1_schools,r2_schools)
-# nsf_wide <- merge(nsf_wide, tier_infor, by = "UNITID", all.x = TRUE)
-
-
-# nsf_wide$long <- jitter(nsf_wide$long)
-# nsf_wide$lat <- jitter(nsf_wide$lat)
-
-coords <- data.frame("long" = nsf_wide$long,"lat" = nsf_wide$lat)
-# Initialize Convolutional Structure: Basis Functions
-# Basis Generating
+coords <- data.frame("long" = nsf_wide$long, "lat" = nsf_wide$lat)
 long <- coords$long
 lat <- coords$lat
-
-school_ID <-  substr(nsf_wide$ID,1,6) 
-dummy_school <- model.matrix(~ school_ID - 1)
-dummy_car94 <- model.matrix(~ nsf_wide$carnegie_code_1994 - 1)
-dummy_state <- model.matrix(~ nsf_wide$state - 1)
-# dummy_car05 <- model.matrix(~ nsf_wide$carnegie_code_2005 - 1)
-# dummy_car10 <- model.matrix(~ nsf_wide$carnegie_code_2010 - 1)
-# dummy_car15 <- model.matrix(~ nsf_wide$carnegie_code_2015 - 1)
-
+# carnegie_1994 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1994.csv", header = TRUE)
+# carnegie_1995 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1995.csv", header = TRUE)
 
 coordinates(coords) <- ~ long + lat
 
@@ -171,19 +148,19 @@ rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d,
 
 
 
-zero_col <- which(colSums(conv_covar)==0)
-conv_covar <- conv_covar[,-zero_col]
+# zero_col <- which(colSums(conv_covar)==0)
+# conv_covar <- conv_covar[,-zero_col]
 
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
-
+# conv_covar <- apply(conv_covar, 2, min_max_scale)
 # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
 
 
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
 nh <- 2000 # Number of hidden units in RNN
-
-dummy_matrix <- cbind(dummy_school, dummy_car94, dummy_state)
+dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
+dummy_matrix <- cbind(dummy_school)
 
 nx_sp <- ncol(conv_covar) # Number of covariates
 
@@ -192,7 +169,7 @@ nx_dummy <- ncol(dummy_matrix)
 # nx_full <- nx_sp + nx_dummy
 # The range of the standard uniform distribution of the weights
 nu <- 0.9
-time_step <- length(unique(nsf_long$year))
+time_step <- 50
 
 W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
 
@@ -208,7 +185,6 @@ ar_col <- matrix(runif(nh,-a,a), nrow = 1)
 
 
 lambda_scale <- max(abs(eigen(W)$values))
-
 ux_sp <- conv_covar%*%U_sp
 ux_dummy <- dummy_matrix%*%U_dummy
 # ux_full <- cbind(conv_covar,dummy_school)%*%rbind(U_sp,U_dummy)
@@ -217,26 +193,30 @@ ux_dummy <- dummy_matrix%*%U_dummy
 curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
 # curr_H <- ux_sp
 
-Y <- nsf_wide[,10]
+Y <- nsf_wide[,6]
 
 pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
 for (i in 2:time_step) {
   setTxtProgressBar(pb,i)
-  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + log(nsf_wide[,i+8])%*%ar_col, c(1,2), tanh)
+  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + log(nsf_wide[,i+4] + 1)%*%ar_col, c(1,2), tanh)
   # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
-  Y <- c(Y, nsf_wide[,i+9])
+  Y <- c(Y, nsf_wide[,i+5])
   curr_H <- rbind(curr_H, new_H)
 }
 
+curr_H_scaled <- apply(curr_H, 2, min_max_scale)
 # pca_H <- prcomp(curr_H)
 # pca_var <-predict(pca_H)
 # write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_full_model_H.csv", row.names = FALSE)
 
-cv_model <-  cv.glmnet(x = curr_H, y = Y, family = "poisson",alpha = 0)
-ridge_cresn <- glmnet(x= curr_H, y = Y, alpha = 0, lambda = cv_model$lambda.min, family = "poisson")
-y_pred <- predict(ridge_cresn, newx = curr_H, s = cv_model$lambda)
-# glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
-# CRESN_res <- glm_CRESN$residuals
+# cv_model <-  cv.glmnet(x = curr_H, y = Y, family = "poisson",alpha = 0)
+# ridge_cresn <- glmnet(x= curr_H, y = Y, alpha = 0, lambda = cv_model$lambda.min, family = "poisson")
+# y_pred <- predict(ridge_cresn, newx = curr_H, s = cv_model$lambda)
+
+glm_CRESN_scaled <- glm.nb(Y~curr_H_scaled, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
+glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
+
+CRESN_res <- glm_CRESN$residuals
 CRESN_res <- Y - y_pred
 
 year_stack <- rep(1972:2021, each = nrow(nsf_wide))

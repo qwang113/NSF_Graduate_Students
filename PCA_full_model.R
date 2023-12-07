@@ -158,6 +158,10 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
 
 num_prev <- 30
+
+curr_nsf <- nsf_wide[,-c(1:5)]
+curr_nsf_use <- curr_nsf[,c(1:num_prev)]
+
 nu <- 0.9
 time_step <- 50
 
@@ -168,7 +172,7 @@ dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Gra
 dummy_matrix <- cbind(dummy_school, dummy_car)
 
 # PCA, we can choose to scale and certer or not
-res_y <- t(nsf_wide[,-c(1:(5+num_prev))])
+res_y <- t(nsf_wide[,c(6:(5+num_prev))])
 pca_res <- prcomp(res_y , scale. = FALSE, center = FALSE)
 # Select the number of components that can explain over 95% variance
 num_comp <- which(cumsum(pca_res$sdev^2)/sum(pca_res$sdev^2) > 0.95)[1]
@@ -185,7 +189,8 @@ ar_col <- vector("list")
 lambda_scale <- rep(NA, num_comp)
 ux_sp <- vector("list")
 ux_dummy <- vector("list")
-
+curr_H <- vector("list")
+new_H <- vector("list")
 for (i in 1:num_comp) {
   W[[i]] <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
   U_sp[[i]] <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
@@ -194,27 +199,20 @@ for (i in 1:num_comp) {
   lambda_scale[i] <- max(abs(eigen(W[[i]])$values))
   ux_sp[[i]] <- conv_covar%*%U_sp[[i]]
   ux_dummy[[i]] <- dummy_matrix%*%U_dummy[[i]]
+  curr_H[[i]] <- apply(ux_sp[[i]] + ux_dummy[[i]], c(1,2), tanh)
 }
 
-
-lambda_scale <- max(abs(eigen(W)$values))
-
-# ux_full <- cbind(conv_covar,dummy_school)%*%rbind(U_sp,U_dummy)
-
-
-curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
-# curr_H <- ux_sp
+for (rnn_index in 1:(ncol(curr_nsf_use)-1)) {
+  
+  
+}
 
 Y <- nsf_wide[,6]
+new_H[[i]] <- apply( nu/lambda_scale[i]*curr_H[[i]][(nrow(curr_H[[i]])-nrow(nsf_wide)+1):nrow(curr_H[[i]]),]%*%W[[i]] + ux_sp[[i]] + ux_dummy[[i]] + log(pc_y[,i] ,1)%*%ar_col[[i]], c(1,2), tanh)
 
-pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
-for (i in 2:time_step) {
-  setTxtProgressBar(pb,i)
-  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + log(nsf_wide[,i+4] + 1)%*%ar_col, c(1,2), tanh)
-  # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
-  Y <- c(Y, nsf_wide[,i+5])
-  curr_H <- rbind(curr_H, new_H)
-}
+Y <- c(Y, nsf_wide[,i+5])
+curr_H <- rbind(curr_H, new_H)
+
 
 curr_H_scaled <- apply(curr_H, 2, min_max_scale)
 

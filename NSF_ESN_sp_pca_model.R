@@ -15,6 +15,9 @@ use_condaenv("tf_gpu")
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 UNITID <- substr(nsf_wide$ID,1,6)
 nsf_wide <- cbind(UNITID,nsf_wide)
+carnegie_2021 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/2021.csv", header = TRUE)[,c(1,4)]
+colnames(carnegie_2021)[1] <- "UNITID"
+nsf_wide_car <- merge(nsf_wide, carnegie_2021, by = "UNITID")
 
 
 coords <- data.frame("long" = nsf_wide$long, "lat" = nsf_wide$lat)
@@ -159,11 +162,18 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
 nh <- 2000 # Number of hidden units in RNN
+
+dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
 dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
-dummy_matrix <- cbind(dummy_school)
+dummy_matrix <- cbind(dummy_school, dummy_car)
 
-nx_sp <- ncol(conv_covar) # Number of covariates
 
+pc_spbasis <- prcomp(conv_covar)
+
+num_comp <- length(which(cumsum(pc_spbasis$sdev^2)/sum(pc_spbasis$sdev^2) < 1 ))
+prc_sp <- pc_spbasis$x[,1:num_comp]
+
+nx_sp <- ncol(prc_sp) # Number of covariates
 nx_dummy <- ncol(dummy_matrix)
 
 # nx_full <- nx_sp + nx_dummy
@@ -185,7 +195,7 @@ ar_col <- matrix(runif(nh,-a,a), nrow = 1)
 
 
 lambda_scale <- max(abs(eigen(W)$values))
-ux_sp <- conv_covar%*%U_sp
+ux_sp <- prc_sp%*%U_sp
 ux_dummy <- dummy_matrix%*%U_dummy
 # ux_full <- cbind(conv_covar,dummy_school)%*%rbind(U_sp,U_dummy)
 
@@ -208,28 +218,19 @@ curr_H_scaled <- apply(curr_H, 2, min_max_scale)
 
 colnames(curr_H_scaled) <- paste("node", 1:ncol(curr_H_scaled))
 
-# curr_H_scaled <- as.data.frame(curr_H_scaled)
 
-# pca_H <- prcomp(curr_H)
-# pca_var <-predict(pca_H)
-# write.csv(curr_H, "D:/77/UCSC/study/Research/temp/NSF_dat/CRESN_full_model_H.csv", row.names = FALSE)
-
-# cv_model <-  cv.glmnet(x = curr_H, y = Y, family = "poisson",alpha = 0)
-# ridge_cresn <- glmnet(x= curr_H, y = Y, alpha = 0, lambda = cv_model$lambda.min, family = "poisson")
-# y_pred <- predict(ridge_cresn, newx = curr_H, s = cv_model$lambda)
 one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2001:2021))
 
 for (i in 2001:2021) {
   years_before <- i - 1972
   prev_y <- Y[1:(years_before*nrow(nsf_wide))]
   prev_H <- data.frame(curr_H_scaled[1:(years_before*nrow(nsf_wide)), ])
-  one_step_ahead_model <- glm.nb(prev_y~., data = cbind(prev_y, prev_H), control = glm.control(epsilon = 1e-8, maxit = 1000, trace = TRUE))
-  pred_H <- curr_H_scaled[c( (years_before*nrow(nsf_wide)+1):((years_before+1)*nrow(nsf_wide)) ), ]
-  # estim_params <- one_step_ahead_model$coefficients
-  # pred_y <- cbind(1,pred_H) %*% matrix(estim_params, ncol = 1)
-  predict(one_step_ahead_model, newdata = data.frame(pred_H))
-  one_step_ahead_pred_y[,i-2000] <- exp(pred_y)
-  
+  prc_prev_H <- prcomp(prev_H, scale. = FALSE, center = FALSE)
+  curr_num_comp <- length(which(cumsum(prc_prev_H$sdev^2)/sum(prc_prev_H$sdev^2) <= 0.98))
+  prc_curr_H <- prc_prev_H$x[,1:curr_num_comp]
+  one_step_ahead_model <- glm.nb(prev_y~., data = data.frame(cbind(prev_y, prc_curr_H)), control = glm.control(epsilon = 1e-8, maxit = 10000, trace = TRUE))
+  pred_H <- curr_H_scaled[c( (years_before*nrow(nsf_wide)+1):((years_before+1)*nrow(nsf_wide)) ), ] %*% prc_prev_H$rotation[,1:curr_num_comp]
+  one_step_ahead_pred_y[,i-2000] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
 }
 
 one_step_ahead_res <- nsf_wide[,c(ncol(nsf_wide)-20):ncol(nsf_wide)] - one_step_ahead_pred_y

@@ -236,9 +236,6 @@ for (i in 2001:2021) {
 one_step_ahead_res <- nsf_wide[,c(ncol(nsf_wide)-20):ncol(nsf_wide)] - one_step_ahead_pred_y
 
 
-
-
-
 write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred.csv", row.names = FALSE)
 
 

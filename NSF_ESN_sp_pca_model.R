@@ -166,14 +166,16 @@ nh <- 2000 # Number of hidden units in RNN
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
 dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
 dummy_matrix <- cbind(dummy_school, dummy_car)
+# 
+# 
+# pc_spbasis <- prcomp(conv_covar)
+# 
+# num_comp <- length(which(cumsum(pc_spbasis$sdev^2)/sum(pc_spbasis$sdev^2) < 1 ))
+# prc_sp <- pc_spbasis$x[,1:num_comp]
+# 
+# nx_sp <- ncol(prc_sp) # Number of covariates
 
-
-pc_spbasis <- prcomp(conv_covar)
-
-num_comp <- length(which(cumsum(pc_spbasis$sdev^2)/sum(pc_spbasis$sdev^2) < 1 ))
-prc_sp <- pc_spbasis$x[,1:num_comp]
-
-nx_sp <- ncol(prc_sp) # Number of covariates
+nx_sp <- ncol(conv_covar)
 nx_dummy <- ncol(dummy_matrix)
 
 # nx_full <- nx_sp + nx_dummy
@@ -195,7 +197,7 @@ ar_col <- matrix(runif(nh,-a,a), nrow = 1)
 
 
 lambda_scale <- max(abs(eigen(W)$values))
-ux_sp <- prc_sp%*%U_sp
+ux_sp <- conv_covar%*%U_sp
 ux_dummy <- dummy_matrix%*%U_dummy
 # ux_full <- cbind(conv_covar,dummy_school)%*%rbind(U_sp,U_dummy)
 
@@ -219,44 +221,65 @@ curr_H_scaled <- apply(curr_H, 2, min_max_scale)
 colnames(curr_H_scaled) <- paste("node", 1:ncol(curr_H_scaled))
 
 
-one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2001:2021))
+one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2015:2021))
 
-for (i in 2001:2021) {
+# for (i in 2015:2021) {
+#   print(paste("Now doing year",i))
+#   years_before <- i - 1972
+#   prev_y <- Y[1:(years_before*nrow(nsf_wide))]
+#   prev_H <- data.frame(curr_H_scaled[1:(years_before*nrow(nsf_wide)), ])
+#   prc_prev_H <- prcomp(prev_H, scale. = FALSE, center = FALSE)
+#   curr_num_comp <- length(which(cumsum(prc_prev_H$sdev^2)/sum(prc_prev_H$sdev^2) <= 0.98))
+#   
+#   prc_curr_H <- prc_prev_H$x[,1:curr_num_comp]
+#   one_step_ahead_model <- glm.nb(prev_y~., data = data.frame(cbind(prev_y, prc_curr_H)), control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+#   
+#   pred_H <- curr_H_scaled[c( (years_before*nrow(nsf_wide)+1):((years_before+1)*nrow(nsf_wide)) ), ] %*% prc_prev_H$rotation[,1:curr_num_comp]
+#   one_step_ahead_pred_y[,i-2014] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
+# }
+# 
+# one_step_ahead_res <- nsf_wide[,c(ncol(nsf_wide)-6):ncol(nsf_wide)] - one_step_ahead_pred_y
+# 
+# 
+# write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred_pca.csv", row.names = FALSE)
+# write.csv( as.data.frame(one_step_ahead_res), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred_pca_res.csv", row.names = FALSE)
+# 
+# 
+
+
+for (i in 2015:2021) {
+  print(paste("Now doing year",i))
   years_before <- i - 1972
   prev_y <- Y[1:(years_before*nrow(nsf_wide))]
   prev_H <- data.frame(curr_H_scaled[1:(years_before*nrow(nsf_wide)), ])
-  prc_prev_H <- prcomp(prev_H, scale. = FALSE, center = FALSE)
-  curr_num_comp <- length(which(cumsum(prc_prev_H$sdev^2)/sum(prc_prev_H$sdev^2) <= 0.98))
-  prc_curr_H <- prc_prev_H$x[,1:curr_num_comp]
-  one_step_ahead_model <- glm.nb(prev_y~., data = data.frame(cbind(prev_y, prc_curr_H)), control = glm.control(epsilon = 1e-8, maxit = 10000, trace = TRUE))
-  pred_H <- curr_H_scaled[c( (years_before*nrow(nsf_wide)+1):((years_before+1)*nrow(nsf_wide)) ), ] %*% prc_prev_H$rotation[,1:curr_num_comp]
-  one_step_ahead_pred_y[,i-2000] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
+
+  one_step_ahead_model <- glm.nb(prev_y~., data = data.frame(cbind(prev_y, prev_H)), control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+  pred_H <- curr_H_scaled[c( (years_before*nrow(nsf_wide)+1):((years_before+1)*nrow(nsf_wide)) ), ] 
+  
+  one_step_ahead_pred_y[,i-2014] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
 }
 
-one_step_ahead_res <- nsf_wide[,c(ncol(nsf_wide)-20):ncol(nsf_wide)] - one_step_ahead_pred_y
-
-
-write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred.csv", row.names = FALSE)
-
-
+one_step_ahead_res <- nsf_wide[,c(ncol(nsf_wide)-6):ncol(nsf_wide)] - one_step_ahead_pred_y
+write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred_full.csv", row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_res), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred_full_res.csv", row.names = FALSE)
 
 
 
 
 
-
-
-glm_CRESN_scaled <- glm.nb(Y~curr_H_scaled, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
-glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
-
-CRESN_res <- glm_CRESN$residuals
-CRESN_res <- Y - y_pred
-
-year_stack <- rep(1972:2021, each = nrow(nsf_wide))
-school_ID <- rep(nsf_wide$ID,50)
-long_stack <- rep(nsf_wide$long,50)
-lat_stack <- rep(nsf_wide$lat,50)
-
-res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
-
-write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", "Full_Model+state+Car_res+Ridge", nh, ".csv", sep = ""), row.names = FALSE)
+# 
+# 
+# glm_CRESN_scaled <- glm.nb(Y~curr_H_scaled, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
+# glm_CRESN <- glm.nb(Y~curr_H, control = glm.control(epsilon = 1e-8, maxit = 50, trace = TRUE))
+# 
+# CRESN_res <- glm_CRESN$residuals
+# CRESN_res <- Y - y_pred
+# 
+# year_stack <- rep(1972:2021, each = nrow(nsf_wide))
+# school_ID <- rep(nsf_wide$ID,50)
+# long_stack <- rep(nsf_wide$long,50)
+# lat_stack <- rep(nsf_wide$lat,50)
+# 
+# res_stack <- data.frame("ID" = school_ID, "long" = long_stack, "lat" = lat_stack, "year" = year_stack, "Residuals" = CRESN_res)
+# 
+# write.csv(res_stack, paste("D:/77/UCSC/study/Research/temp/NSF_dat/", "Full_Model+state+Car_res+Ridge", nh, ".csv", sep = ""), row.names = FALSE)

@@ -25,40 +25,6 @@ dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
 # dummy_matrix <- cbind(dummy_school, dummy_car)
 dummy_matrix <- dummy_school
 
-#Assume Beta changes across the schools.
-#No need to add covariate if they doesn't change aross the time.
-
-individual_beta_pred <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2015:2021))
-for (i in 2015:2021) {
-  print(paste("Now doing year",i))
-  years_before <- i - 1972
-  prev_y <- t(wide_y)[1:years_before,]
-  prev_pc <- prcomp(prev_y)
-  num_pc <- length(which(cumsum(prev_pc$sdev^2)/sum(prev_pc$sdev^2) <= 0.95 ))
-  prev_pc_use <- prev_pc$x[,1:num_pc]
-
-  for (j in 1:nrow(nsf_wide)) {
-    print(paste("Now doing school",j))
-    #Each school has its own slope but shared across the time, loop across the schoools
-    curr_y <- wide_y[j,2:years_before]
-    curr_pc_cov <- prev_pc_use[1:(nrow(prev_pc_use)-1),] # Use the previous year's principal component
-    curr_dat <- cbind(t(curr_y), curr_pc_cov)
-    colnames(curr_dat) <- c("y",colnames(curr_pc_cov))
-    curr_model <- glm(y~., data = data.frame(curr_dat), control = glm.control(epsilon = 1e-8, maxit = 100, trace = TRUE), family = poisson(link = "log"))
-    pred_x <- matrix(prev_pc_use[nrow(prev_pc_use),], nrow = 1)
-    colnames(pred_x) <- colnames(curr_pc_cov)
-    prediction <- predict(curr_model, data.frame(pred_x), type = "response")
-    individual_beta_pred[j,i-2014] <- prediction
-  }
-
-}
-
-write.csv( as.data.frame(individual_beta_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/indi_beta_pred.csv", row.names = FALSE)
-
-
-
-
-
 
 #Assume Beta does not change across the schools.
 shared_beta_pred <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2015:2021))

@@ -172,12 +172,13 @@ dummy_matrix <- cbind(dummy_school, dummy_car)
 
 # PCA, we can choose to scale and certer or not
 res_y <- t(nsf_wide[,c(6:(5+num_prev))])
-pca_res <- prcomp(res_y)
+pca_res <- prcomp(res_y, scale. = FALSE, center = FALSE)
 # Select the number of components that can explain over 95% variance
 num_comp <- which(cumsum(pca_res$sdev^2)/sum(pca_res$sdev^2) > 0.95)[1]
 pc_y <-  pca_res$x[,1:num_comp]
-
-
+curr_model <- VAR(pc_y, p = 1)
+one_step_ahead_pc <- as.data.frame(predict(curr_model)$fcst)[1,seq(from = 1, by = 3, length.out = num_comp)]
+one_step_ahead_pred <- as.matrix(one_step_ahead_pc) %*% t(pca_res$rotation[,1:num_comp])
 
 
 

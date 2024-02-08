@@ -15,14 +15,13 @@ use_condaenv("tf_gpu")
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 UNITID <- substr(nsf_wide$ID,1,6)
 nsf_wide <- cbind(UNITID,nsf_wide)
-
+carnegie_2021 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/2021.csv", header = TRUE)[,c(1,4)]
+colnames(carnegie_2021)[1] <- "UNITID"
+nsf_wide_car <- merge(nsf_wide, carnegie_2021, by = "UNITID")
 
 coords <- data.frame("long" = nsf_wide$long, "lat" = nsf_wide$lat)
 long <- coords$long
 lat <- coords$lat
-# carnegie_1994 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1994.csv", header = TRUE)
-# carnegie_1995 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1995.csv", header = TRUE)
-
 coordinates(coords) <- ~ long + lat
 
 gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "Gaussian", regular = 1)
@@ -160,8 +159,8 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
 nh <- 2000 # Number of hidden units in RNN
 dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
-dummy_matrix <- cbind(dummy_school)
-
+dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
+dummy_matrix <- cbind(dummy_school, dummy_car)
 nx_sp <- ncol(conv_covar) # Number of covariates
 
 nx_dummy <- ncol(dummy_matrix)
@@ -176,13 +175,6 @@ W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the out
 U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
 U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
 ar_col <- matrix(runif(nh,-a,a), nrow = 1)
-
-
-# W <- matrix(rnorm(nh^2, sd = sig), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-# U_sp <- matrix(rnorm(nh*nx_sp, sd = sig), nrow = nx_sp, ncol = nh)
-# U_dummy <- matrix(rnorm(nh*nx_dummy, sd = sig), nrow = nx_dummy, ncol = nh)
-# ar_col <- matrix(rnorm(nh, sd = sig), nrow = 1)
-
 
 lambda_scale <- max(abs(eigen(W)$values))
 ux_sp <- conv_covar%*%U_sp

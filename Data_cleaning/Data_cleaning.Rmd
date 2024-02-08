@@ -113,7 +113,7 @@ for (i in 1:length(all_schools)) {
 stay_schools <- unique(final_dat$ID)[stay]
 stay_dat_long <- final_dat[final_dat$ID %in% stay_schools, ]
 stay_dat_wide <- dcast(as.data.frame(stay_dat_long), ID + long + lat + state + carnegie_code_1994+ carnegie_code_2005+ carnegie_code_2010+ carnegie_code_2015~ year, value.var = "y")
-exist_0_ID <- stay_dat_wide$ID[which( rowSums( stay_dat_wide[,-c(1:8)] == 0 ) != 0 )]
+too_many_0_ID <- stay_dat_wide$ID[which( rowSums( stay_dat_wide[,-c(1:8)] == 0 )> 5 )]
 na_omit_rows <- stay_dat_wide$ID[which( is.na(rowSums( stay_dat_wide[,-c(1:8)] )) )]
 
 

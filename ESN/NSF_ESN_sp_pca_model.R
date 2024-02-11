@@ -164,76 +164,58 @@ leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wi
 nh <- 200 # Number of hidden units in RNN
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
-# dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
-# dummy_matrix <- cbind(dummy_school, dummy_car)
 dummy_matrix <- cbind(dummy_car)
 # 
 # 
-# pc_spbasis <- prcomp(conv_covar)
-# 
-# num_comp <- length(which(cumsum(pc_spbasis$sdev^2)/sum(pc_spbasis$sdev^2) < 1 ))
-# prc_sp <- pc_spbasis$x[,1:num_comp]
-# 
-# nx_sp <- ncol(prc_sp) # Number of covariates
 
-nx_sp <- ncol(conv_covar)
-nx_dummy <- ncol(dummy_matrix)
-
-# nx_full <- nx_sp + nx_dummy
-# The range of the standard uniform distribution of the weights
-nu <- 0.9
-time_step <- 50
-
-W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-
-U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
-U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
-ar_col <- matrix(runif(nh,-a,a), nrow = 1)
-
-lambda_scale <- max(abs(eigen(W)$values))
-ux_sp <- conv_covar%*%U_sp
-ux_dummy <- dummy_matrix%*%U_dummy
-
-
-
-curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
-# curr_H <- ux_sp
-
-Y <- nsf_wide[,6]
-
-pb <- txtProgressBar(min = 1, max = length(2:time_step), style = 3)
-for (i in 2:time_step) {
-  setTxtProgressBar(pb,i)
-  new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + log(nsf_wide[,i+4] + 1)%*%ar_col, c(1,2), tanh)
-  # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + nsf_wide[,i+2]%*%ar_col, c(1,2), tanh)
-  Y <- c(Y, nsf_wide[,i+5])
-  curr_H <- rbind(curr_H, new_H)
-}
-
-curr_H_scaled <- apply(curr_H, 2, min_max_scale)
-
-colnames(curr_H_scaled) <- paste("node", 1:ncol(curr_H_scaled))
-
-
+a <- 0.01
 one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2012:2021))
+for (year in 2012:2021) {
+  #Initialize
+  nx_sp <- ncol(conv_covar)
+  nx_dummy <- ncol(dummy_matrix)
+  nu <- 0.9
+  W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
+  U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
+  U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
+  ar_col <- matrix(runif(nh,-a,a), nrow = 1)
+  lambda_scale <- max(abs(eigen(W)$values))
+  ux_sp <- conv_covar%*%U_sp
+  ux_dummy <- dummy_matrix%*%U_dummy
+  curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
+  prev_year <- nsf_wide_car[,2:(year-1972+1)]
+  pc_prev <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
+  nx_pc <- ncol(pc_prev)
+  U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
 
+  curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
+  Y <- nsf_wide_car[,2]
+  pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
+  for (i in 2:(year-1972+1)) {
+    setTxtProgressBar(pb,i)
+    curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
+    # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
+    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col, c(1,2), tanh)
+    
+    Y <- c(Y, nsf_wide_car[,i+1])
+    curr_H <- rbind(curr_H, new_H)
+  }
+  colnames(curr_H) <- paste("node", 1:ncol(curr_H))
+  obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
+  pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
 
-
-
-for (i in 2012:2021) {
-  print(paste("Now doing year",i))
-  years_before <- i - 1972
-  prev_y <- Y[1:(years_before*nrow(nsf_wide))]
-  prev_H <- data.frame(curr_H_scaled[1:(years_before*nrow(nsf_wide)), ])
-
-  one_step_ahead_model <- glm.nb(prev_y~., data = data.frame(cbind(prev_y, prev_H)), control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-  pred_H <- curr_H_scaled[c( (years_before*nrow(nsf_wide)+1):((years_before+1)*nrow(nsf_wide)) ), ] 
+  print(paste("Now doing year",year))
+  years_before <- year - 1972
+  obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
+  one_step_ahead_model <- glm.nb(obs_y~., data = data.frame(cbind(obs_y, obs_H)), control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+  one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H),  type = "response")
   
-  one_step_ahead_pred_y[,i-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H),  type = "response")
+  
 }
 
-one_step_ahead_res <- nsf_wide[,c(ncol(nsf_wide)-6):ncol(nsf_wide)] - one_step_ahead_pred_y
-write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred_full.csv", row.names = FALSE)
-write.csv( as.data.frame(one_step_ahead_res), "D:/77/UCSC/study/Research/temp/NSF_dat/oo_one_step_ahead_pred_full_res.csv", row.names = FALSE)
+
+one_step_ahead_res <- nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
+write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/osa_200nodes.csv", row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_res), "D:/77/UCSC/study/Research/temp/NSF_dat/osa200nodes.csv", row.names = FALSE)
 
 

@@ -204,8 +204,6 @@ for (year in 2012:2021) {
   obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
   one_step_ahead_model <- glm.nb(obs_y~., data = data.frame(cbind(obs_y, obs_H)), control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
   one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H),  type = "response")
-  
-  
 }
 
 

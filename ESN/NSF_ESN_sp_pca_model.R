@@ -157,7 +157,7 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 500 # Number of hidden units in RNN
+nh <- 100 # Number of hidden units in RNN
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
 dummy_state <- model.matrix(~nsf_wide_car$state - 1)

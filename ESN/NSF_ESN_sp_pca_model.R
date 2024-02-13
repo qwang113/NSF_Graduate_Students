@@ -158,7 +158,7 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 200 # Number of hidden units in RNN
+nh <- 500 # Number of hidden units in RNN
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
 dummy_state <- model.matrix(~nsf_wide_car$state - 1)
@@ -193,8 +193,8 @@ for (year in 2012:2021) {
   for (i in 2:(year-1972+1)) {
     setTxtProgressBar(pb,i)
     curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
-    # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
-    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col, c(1,2), tanh)
+    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
+    # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col, c(1,2), tanh)
     
     Y <- c(Y, nsf_wide_car[,i+1])
     curr_H <- rbind(curr_H, new_H)

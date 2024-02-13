@@ -111,14 +111,13 @@ num_filters <- 200
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
-                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
+                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
 layer_flatten() 
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)  %>%
 layer_flatten()
 
 
@@ -185,7 +184,6 @@ for (year in 2012:2021) {
   pc_prev <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
   nx_pc <- ncol(pc_prev)
   U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
-
   curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
   Y <- nsf_wide_car[,2]
   pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
@@ -201,7 +199,6 @@ for (year in 2012:2021) {
   colnames(curr_H) <- paste("node", 1:ncol(curr_H))
   obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
   pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
-
   print(paste("Now doing year",year))
   years_before <- year - 1972
   obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]

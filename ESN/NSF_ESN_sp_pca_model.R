@@ -122,12 +122,11 @@ st_model_res_2 <- keras_model_sequential() %>%
 layer_flatten()
 
 
+
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)%>%
-layer_flatten()
-
+ layer_flatten() 
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -216,5 +215,13 @@ for (year in 2012:2021) {
 one_step_ahead_res <- nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
 write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh, ".csv", sep = ""), row.names = FALSE)
 write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh, ".csv", sep = ""), row.names = FALSE)
+
+#Note: Total var is 6040.204
+#1. 200 filters leads to mse 782.3817
+
+
+
+
+
 
 

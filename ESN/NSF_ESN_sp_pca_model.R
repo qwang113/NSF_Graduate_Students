@@ -112,24 +112,21 @@ num_filters <- 200
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
-layer_flatten() %>%
-layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+layer_flatten() 
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)  %>%
-layer_flatten() %>%
-layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+layer_flatten()
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)%>%
-layer_flatten() %>%
-layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+layer_flatten()
 
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
@@ -164,7 +161,9 @@ leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wi
 nh <- 200 # Number of hidden units in RNN
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
-dummy_matrix <- cbind(dummy_car)
+dummy_state <- model.matrix(~nsf_wide_car$state - 1)
+dummy_matrix <- cbind(dummy_car, dummy_state)
+
 # 
 # 
 
@@ -215,7 +214,7 @@ for (year in 2012:2021) {
 
 
 one_step_ahead_res <- nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
-write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/osa_200nodes.csv", row.names = FALSE)
-write.csv( as.data.frame(one_step_ahead_res), "D:/77/UCSC/study/Research/temp/NSF_dat/osa200nodes.csv", row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh, ".csv", sep = ""), row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh, ".csv", sep = ""), row.names = FALSE)
 
 

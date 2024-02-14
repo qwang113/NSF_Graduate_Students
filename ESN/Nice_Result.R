@@ -95,7 +95,7 @@ for (i in 1:nrow(coords@coords)) {
 }
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
-a <- 0.01
+a <- 0.1
 
 my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
@@ -111,21 +111,26 @@ num_filters <- 200
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
-                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-layer_flatten() %>% layer_dense(units = 1000, kernel_initializer = my_custom_initializer)
+                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
+  layer_flatten() %>%
+  layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-layer_flatten()%>% layer_dense(units = 1000, kernel_initializer = my_custom_initializer)
-
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)  %>%
+  layer_flatten() %>%
+  layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
- layer_flatten() %>% layer_dense(units = 1000, kernel_initializer = my_custom_initializer)
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)%>%
+  layer_flatten() %>%
+  layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -150,7 +155,7 @@ rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d,
 # conv_covar <- conv_covar[,-zero_col]
 
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
-conv_covar <- apply(conv_covar, 2, min_max_scale)
+# conv_covar <- apply(conv_covar, 2, min_max_scale)
 # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
 
 
@@ -159,16 +164,17 @@ leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wi
 nh <- 200 # Number of hidden units in RNN
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
-dummy_state <- model.matrix(~nsf_wide_car$state - 1)
-dummy_matrix <- cbind(dummy_car, dummy_state)
+dummy_matrix <- cbind(dummy_car)
 
 a <- 0.01
 one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2012:2021))
+
+
 for (year in 2012:2021) {
   #Initialize
   nx_sp <- ncol(conv_covar)
   nx_dummy <- ncol(dummy_matrix)
-  nu <- 1
+  nu <- 0.9
   W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
   U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
   U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
@@ -181,6 +187,7 @@ for (year in 2012:2021) {
   pc_prev <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
   nx_pc <- ncol(pc_prev)
   U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
+  
   curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
   Y <- nsf_wide_car[,2]
   pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
@@ -188,7 +195,7 @@ for (year in 2012:2021) {
     setTxtProgressBar(pb,i)
     curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
     # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
-    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W, c(1,2), tanh)
+    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col, c(1,2), tanh)
     
     Y <- c(Y, nsf_wide_car[,i+1])
     curr_H <- rbind(curr_H, new_H)
@@ -196,28 +203,21 @@ for (year in 2012:2021) {
   colnames(curr_H) <- paste("node", 1:ncol(curr_H))
   obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
   pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
+  
   print(paste("Now doing year",year))
   years_before <- year - 1972
   obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
   one_step_ahead_model <- glm.nb(obs_y~., data = data.frame(cbind(obs_y, obs_H)), control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-  one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+  one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H),  type = "response")
+  
 }
-
 
 one_step_ahead_res <- nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
 mean(unlist(as.vector(one_step_ahead_res))^2)
 var(unlist(as.vector(nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))])))
 
 
-write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh, ".csv", sep = ""), row.names = FALSE)
-write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh, ".csv", sep = ""), row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/osa_200nodes.csv", row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_res), "D:/77/UCSC/study/Research/temp/NSF_dat/osa200nodes.csv", row.names = FALSE)
 
-#Note: Total var is 6040.204
-#1. 200 filters leads to mse 782.3817
-
-
-
-
-
-
-
+  

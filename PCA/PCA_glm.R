@@ -1,16 +1,4 @@
 rm(list = ls())
-library(ggplot2)
-library(sp)
-library(fields)
-library(mvtnorm)
-library(FRK)
-library(utils)
-library(keras)
-library(reticulate)
-library(tensorflow)
-library(glmnet)
-library(MASS)
-use_condaenv("tf_gpu")
 # Gaussian Process with Matern Correlation
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
 UNITID <- substr(nsf_wide$ID,1,6)
@@ -18,7 +6,7 @@ nsf_wide <- cbind(UNITID,nsf_wide)
 carnegie_2021 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/2021.csv", header = TRUE)[,c(1,4)]
 colnames(carnegie_2021)[1] <- "UNITID"
 nsf_wide_car <- merge(nsf_wide, carnegie_2021, by = "UNITID")
-wide_y <- nsf_wide_car[,-c(1:5, ncol(nsf_wide_car))]
+wide_y <- nsf_wide_car[,-c(1:9, ncol(nsf_wide_car))]
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
 dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
@@ -28,30 +16,33 @@ dummy_matrix <- dummy_school
 #Assume Beta changes across the schools.
 #No need to add covariate if they doesn't change aross the time.
 
-individual_beta_pred <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2015:2021))
-for (i in 2015:2021) {
-  print(paste("Now doing year",i))
+individual_beta_pred <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2012:2021))
+for (i in 2012:2021) {
+
   years_before <- i - 1972
   prev_y <- t(wide_y)[1:years_before,]
-  prev_pc <- prcomp(prev_y)
+  prev_pc <- prcomp(prev_y, scale. = TRUE)
   num_pc <- length(which(cumsum(prev_pc$sdev^2)/sum(prev_pc$sdev^2) <= 0.95 ))
   prev_pc_use <- prev_pc$x[,1:num_pc]
 
   for (j in 1:nrow(nsf_wide)) {
-    print(paste("Now doing school",j))
+    print(paste(  print(paste("Now doing year",i)), "Now doing school",j))
     #Each school has its own slope but shared across the time, loop across the schoools
     curr_y <- wide_y[j,2:years_before]
     curr_pc_cov <- prev_pc_use[1:(nrow(prev_pc_use)-1),] # Use the previous year's principal component
     curr_dat <- cbind(t(curr_y), curr_pc_cov)
     colnames(curr_dat) <- c("y",colnames(curr_pc_cov))
-    curr_model <- glm(y~., data = data.frame(curr_dat), family =poisson(link = "log"),  control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+    curr_model <- glm(y~., data = data.frame(curr_dat), family =poisson(link = "log"),  control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = FALSE))
     pred_x <- matrix(prev_pc_use[nrow(prev_pc_use),], nrow = 1)
     colnames(pred_x) <- colnames(curr_pc_cov)
     prediction <- predict(curr_model, data.frame(pred_x), type = "response")
-    individual_beta_pred[j,i-2014] <- prediction
+    individual_beta_pred[j,i-2011] <- prediction
   }
 
 }
+
+individual_beta_res <- nsf_wide_car[,50:59] - individual_beta_pred
+
 
 write.csv( as.data.frame(individual_beta_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/indi_beta_pred.csv", row.names = FALSE)
 
@@ -61,8 +52,8 @@ write.csv( as.data.frame(individual_beta_pred), "D:/77/UCSC/study/Research/temp/
 
 
 #Assume Beta does not change across the schools.
-shared_beta_pred <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2015:2021))
-for (i in 2015:2021) {
+shared_beta_pred <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2012:2021))
+for (i in 2012:2021) {
   print(paste("Now doing year",i))
   years_before <- i - 1972
   prev_y <- t(wide_y)[1:years_before,]
@@ -96,11 +87,13 @@ for (i in 2015:2021) {
   final_dat <- use_dat[-1,]
   colnames(final_dat) <- c("y",colnames(curr_pc_cov),colnames(dummy_matrix))
   curr_model <- glm.nb(y~., data = data.frame(final_dat))
-  pred_pc <- matrix( rep(prev_pc_use[nrow(prev_pc_use),],2002), nrow = 2002, byrow = TRUE)
+  pred_pc <- matrix( rep(prev_pc_use[nrow(prev_pc_use),],nrow(nsf_wide)), nrow = nrow(nsf_wide), byrow = TRUE)
   pred_cov <- cbind(pred_pc, dummy_matrix)
   colnames(pred_cov) <- colnames(final_dat)[-1]
-  shared_beta_pred[,i-2014] <- predict(curr_model, data.frame(pred_cov), type = "response")
+  shared_beta_pred[,i-2011] <- predict(curr_model, data.frame(pred_cov), type = "response")
 }
+
+shared_beta_res <- nsf_wide_car[,50:59] - shared_beta_pred
 
 write.csv( as.data.frame(shared_beta_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/share_beta_pred.csv", row.names = FALSE)
 

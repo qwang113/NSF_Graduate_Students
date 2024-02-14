@@ -113,6 +113,9 @@ st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
   layer_flatten() %>%
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
+                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
+  layer_flatten() %>%
   layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
@@ -217,7 +220,7 @@ mean(unlist(as.vector(one_step_ahead_res))^2)
 var(unlist(as.vector(nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))])))
 
 
-write.csv( as.data.frame(one_step_ahead_pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/osa_200nodes.csv", row.names = FALSE)
-write.csv( as.data.frame(one_step_ahead_res), "D:/77/UCSC/study/Research/temp/NSF_dat/osa200nodes.csv", row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh,"nodes.csv"), row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh,"nodes.csv"), row.names = FALSE)
 
   

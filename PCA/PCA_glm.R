@@ -21,7 +21,7 @@ for (i in 2012:2021) {
 
   years_before <- i - 1972
   prev_y <- t(wide_y)[1:years_before,]
-  prev_pc <- prcomp(prev_y, scale. = TRUE)
+  prev_pc <- prcomp(prev_y)
   num_pc <- length(which(cumsum(prev_pc$sdev^2)/sum(prev_pc$sdev^2) <= 0.95 ))
   prev_pc_use <- prev_pc$x[,1:num_pc]
 
@@ -42,7 +42,7 @@ for (i in 2012:2021) {
 }
 
 individual_beta_res <- nsf_wide_car[,50:59] - individual_beta_pred
-
+sqrt(mean(unlist(as.vector(individual_beta_res^2))))
 
 write.csv( as.data.frame(individual_beta_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/indi_beta_pred.csv", row.names = FALSE)
 

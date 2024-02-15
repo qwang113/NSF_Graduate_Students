@@ -178,7 +178,7 @@ for (year in 2012:2021) {
   ux_dummy <- dummy_matrix%*%U_dummy
   curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
   prev_year <- nsf_wide_car[,2:(year-1972+1)]
-  pc_prev <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
+  pc_prev <- prcomp(t(prev_year), scale. = TRUE)$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
   nx_pc <- ncol(pc_prev)
   U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
   curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
@@ -187,9 +187,9 @@ for (year in 2012:2021) {
   for (i in 2:(year-1972+1)) {
     setTxtProgressBar(pb,i)
     curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
-    # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
-    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W, c(1,2), tanh)
-    
+    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy
+    + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
+    # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W, c(1,2), tanh)
     Y <- c(Y, nsf_wide_car[,i+1])
     curr_H <- rbind(curr_H, new_H)
   }
@@ -199,7 +199,11 @@ for (year in 2012:2021) {
   print(paste("Now doing year",year))
   years_before <- year - 1972
   obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
-  one_step_ahead_model <- glm.nb(obs_y~., data = data.frame(cbind(obs_y, obs_H)), control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+  one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
+                              control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+  # one_step_ahead_model <- glm.nb(obs_y~.,  data = data.frame(cbind(obs_y, obs_H)),
+  #                             control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+  
   one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
 }
 
@@ -212,8 +216,9 @@ var(unlist(as.vector(nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))])))
 write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh, ".csv", sep = ""), row.names = FALSE)
 write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh, ".csv", sep = ""), row.names = FALSE)
 
-#Note: Total var is 6040.204
-#1. 200 filters leads to mse 782.3817
+#Note: Total oo var is 9199.715
+#1. Pois: 882.71 , NB: 902.0309
+
 
 
 

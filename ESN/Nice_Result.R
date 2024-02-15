@@ -110,29 +110,27 @@ sig <- 0.9
 num_filters <- 200
 
 st_model_res_1 <- keras_model_sequential() %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer)  %>%
   layer_flatten() %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
-                input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer)  %>%
-  layer_flatten() %>%
-  layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)  %>%
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer)  %>%
   layer_flatten() %>%
-  layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 st_model_res_3 <- keras_model_sequential() %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid", kernel_initializer = my_custom_initializer)%>%
+  layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "relu", kernel_initializer = my_custom_initializer)%>%
   layer_flatten() %>%
-  layer_dense(units = 2000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_dense(units = 1000, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
@@ -187,7 +185,7 @@ for (year in 2012:2021) {
   ux_dummy <- dummy_matrix%*%U_dummy
   curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
   prev_year <- nsf_wide_car[,2:(year-1972+1)]
-  pc_prev <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
+  pc_prev <- prcomp(t(prev_year), scale. = TRUE)$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
   nx_pc <- ncol(pc_prev)
   U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
   
@@ -196,9 +194,10 @@ for (year in 2012:2021) {
   pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
   for (i in 2:(year-1972+1)) {
     setTxtProgressBar(pb,i)
-    curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
+    curr_shared_pc <- matrix(rep(t(pc_prev[i-1,]), nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
     # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
-    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy + nsf_wide_car[,i]%*%ar_col, c(1,2), tanh)
+    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H) - nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy 
+                    + log(nsf_wide_car[,i]+1)%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
     
     Y <- c(Y, nsf_wide_car[,i+1])
     curr_H <- rbind(curr_H, new_H)
@@ -223,4 +222,5 @@ var(unlist(as.vector(nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))])))
 write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh,"nodes.csv"), row.names = FALSE)
 write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh,"nodes.csv"), row.names = FALSE)
 
-  
+
+read.csv(paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",200,"nodes.csv", sep = ""))

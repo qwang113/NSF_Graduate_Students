@@ -100,7 +100,6 @@ a <- 0.01
 my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
 }
-sig <- 0.9
 
 # my_custom_initializer <- function(shape, dtype = NULL) {
 #   return(tf$random$normal(shape,mean = 0, stddev = 0.1, dtype = dtype))
@@ -156,7 +155,7 @@ conv_covar <- apply(conv_covar, 2, min_max_scale)
 
 
 leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 200 # Number of hidden units in RNN
+nh <- 300 # Number of hidden units in RNN
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
 dummy_state <- model.matrix(~nsf_wide_car$state - 1)
@@ -187,9 +186,13 @@ for (year in 2012:2021) {
   for (i in 2:(year-1972+1)) {
     setTxtProgressBar(pb,i)
     curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
-    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W + ux_sp + ux_dummy
-    + nsf_wide_car[,i]%*%ar_col + curr_shared_pc%*% U_pc, c(1,2), tanh)
-    # new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W, c(1,2), tanh)
+    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W 
+                    # + ux_sp
+                    + ux_dummy
+                    + nsf_wide_car[,i]%*%ar_col
+                    + curr_shared_pc%*% U_pc
+                    , c(1,2), tanh)
+
     Y <- c(Y, nsf_wide_car[,i+1])
     curr_H <- rbind(curr_H, new_H)
   }
@@ -216,8 +219,25 @@ var(unlist(as.vector(nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))])))
 write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh, ".csv", sep = ""), row.names = FALSE)
 write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh, ".csv", sep = ""), row.names = FALSE)
 
-#Note: Total oo var is 9199.715
-#1. Pois: 882.71 , NB: 902.0309
+#Note: Total oo var is 9199.715, 
+
+# MSE in each case is as follows:
+# a = 0.01, PC scaled, nu = 1, 200 nodes
+#1. Pois with everything: 882.71  Y_{t-1} not logged
+#2. Pois without sp: 777.5057  Y_{t-1} not logged
+#3. Pois without sp, without EOF: 655.0542
+#4. Pois without sp, without EOF, without covariates: 653.552
+#5. Pois with no covariates: 9274.638 bad model
+## We can't take log Y, or the prediction MSE goes exploded, bigger than 3e5
+
+# a = 0.01, PC scaled, nu = 1, 500 nodes
+#1. Pois with everything but sp: 1188.984 Y_{t-1} not logged   seems like overfitting
+
+
+# a = 0.01, PC scaled, nu = 1, 300 nodes
+#1. Pois with everything but sp: 980.2472 Y_{t-1} not logged   seems like overfitting
+
+
 
 
 

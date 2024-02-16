@@ -46,13 +46,23 @@ for (year in 2012:2021) {
 }
 
 osh_res <- wide_y[,41:50] - osh_pred
+
+
+write.csv( as.data.frame(osh_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred.csv", row.names = FALSE)
+
+write.csv( as.data.frame(osh_res), "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res.csv", row.names = FALSE)
+
+
+# File path: "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred.csv"
+
 mean(unlist(as.vector(osh_res^2)))
 var(unlist(as.vector( wide_y[,41:50])))
-
+source(here::here("utility_functions.R"))
 annoying_cases <- order(apply(unlist(as.matrix(osh_res^2)), 1, mean), decreasing = TRUE)
 ordered_mse <- rowMeans(unlist(as.matrix(osh_res^2)))[annoying_cases]
-how_annoying <- 1
+how_annoying <- 1799
 show_obs(annoying_cases[how_annoying])
+show_pred(annoying_cases[how_annoying])
 ordered_mse[how_annoying]
 sqrt(ordered_mse[how_annoying])
 
@@ -61,3 +71,8 @@ sqrt(ordered_mse[how_annoying])
 # CNN with/without
 # Visualilze the prediction trace of different models
 # Median/Median sqared error for ESN, PCA, PoisAutoReg with/without special caeses
+
+
+
+
+

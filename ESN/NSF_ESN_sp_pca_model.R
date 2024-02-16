@@ -18,7 +18,7 @@ nsf_wide <- cbind(UNITID,nsf_wide)
 carnegie_2021 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/2021.csv", header = TRUE)[,c(1,4)]
 colnames(carnegie_2021)[1] <- "UNITID"
 nsf_wide_car <- merge(nsf_wide, carnegie_2021, by = "UNITID")[,-c(1:4,6:9)]
-
+gss <- substr(nsf_wide$ID,7,9)
 
 coords <- data.frame("long" = nsf_wide$long, "lat" = nsf_wide$lat)
 long <- coords$long
@@ -152,14 +152,12 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 conv_covar <- apply(conv_covar, 2, min_max_scale)
 # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
 
-
-
-leak_rate <- 1 # It's always best to choose 1 here according to Mcdermott and Wille, 2017
-nh <- 300 # Number of hidden units in RNN
+nh <- 200 # Number of hidden units in RNN
 
 dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
 dummy_state <- model.matrix(~nsf_wide_car$state - 1)
-dummy_matrix <- cbind(dummy_car, dummy_state)
+dummy_gss <- model.matrix(~gss - 1)
+dummy_matrix <- cbind(dummy_car, dummy_gss, dummy_state)
 
 a <- 0.01
 one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide), ncol = length(2012:2021))
@@ -173,8 +171,10 @@ for (year in 2012:2021) {
   U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
   ar_col <- matrix(runif(nh,-a,a), nrow = 1)
   lambda_scale <- max(abs(eigen(W)$values))
-  ux_sp <- conv_covar%*%U_sp
-  ux_dummy <- dummy_matrix%*%U_dummy
+  # ux_sp <- conv_covar%*%U_sp
+  ux_sp <- conv_covar%*%U_sp/max(abs(eigen(U_sp%&%t(U_sp))$values))
+  # ux_dummy <- dummy_matrix%*%U_dummy
+  ux_dummy <- dummy_matrix%*%U_dummy /max(svd(U_dummy)$d)
   curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
   prev_year <- nsf_wide_car[,2:(year-1972+1)]
   pc_prev <- prcomp(t(prev_year), scale. = TRUE)$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
@@ -186,11 +186,13 @@ for (year in 2012:2021) {
   for (i in 2:(year-1972+1)) {
     setTxtProgressBar(pb,i)
     curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
-    new_H <- apply( nu/lambda_scale*curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W 
+    new_H <- apply( 
+      nu/lambda_scale*
+                      curr_H[(nrow(curr_H)-nrow(nsf_wide)+1):nrow(curr_H),]%*%W 
                     # + ux_sp
-                    + ux_dummy
+                    # + ux_dummy
                     + nsf_wide_car[,i]%*%ar_col
-                    + curr_shared_pc%*% U_pc
+                    # + curr_shared_pc%*% U_pc
                     , c(1,2), tanh)
 
     Y <- c(Y, nsf_wide_car[,i+1])
@@ -216,9 +218,13 @@ mean(unlist(as.vector(one_step_ahead_res))^2)
 var(unlist(as.vector(nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))])))
 
 
-write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_pred_",nh, ".csv", sep = ""), row.names = FALSE)
-write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/oo_res_",nh, ".csv", sep = ""), row.names = FALSE)
 
+
+
+write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
+write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)
+
+# Prediction file: paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = "")
 #Note: Total oo var is 9199.715, 
 
 # MSE in each case is as follows:
@@ -236,6 +242,11 @@ write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/t
 
 # a = 0.01, PC scaled, nu = 1, 300 nodes
 #1. Pois with everything but sp: 980.2472 Y_{t-1} not logged   seems like overfitting
+
+
+# a = 0.01, PC scaled, nu = 1, 100 nodes
+#1. Pois with everything but sp: 965
+
 
 
 

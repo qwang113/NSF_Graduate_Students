@@ -1,6 +1,18 @@
 rm(list = ls())
 # Gaussian Process with Matern Correlation
 nsf_wide <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", header = TRUE)
+
+
+if(out.rm)
+{
+  # Remove outliers
+  nh = 200
+  osh_res <- read.csv(paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""))
+  annoying_cases <- order(apply(unlist(as.matrix(osh_res^2)), 1, mean), decreasing = TRUE)
+  nsf_wide <- nsf_wide[-annoying_cases[1:100],]
+}
+
+
 UNITID <- substr(nsf_wide$ID,1,6)
 nsf_wide <- cbind(UNITID,nsf_wide)
 carnegie_2021 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/2021.csv", header = TRUE)[,c(1,4)]
@@ -42,11 +54,16 @@ for (i in 2012:2021) {
 }
 
 individual_beta_res <- nsf_wide_car[,50:59] - individual_beta_pred
-sqrt(mean(unlist(as.vector(individual_beta_res^2))))
 
-write.csv( as.data.frame(individual_beta_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/pca_pred.csv", row.names = FALSE)
+if(nrow(nsf_wide == 1799)){
+  write.csv( as.data.frame(individual_beta_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/pca_pred.csv", row.names = FALSE)
+  write.csv( as.data.frame(individual_beta_res), "D:/77/UCSC/study/Research/temp/NSF_dat/pca_res.csv", row.names = FALSE)
+}else{
+  write.csv( as.data.frame(individual_beta_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/pca_pred_outrm.csv", row.names = FALSE)
+  write.csv( as.data.frame(individual_beta_res), "D:/77/UCSC/study/Research/temp/NSF_dat/pca_res_outrm.csv", row.names = FALSE)
+}
 
-write.csv( as.data.frame(individual_beta_res), "D:/77/UCSC/study/Research/temp/NSF_dat/pca_res.csv", row.names = FALSE)
+
 
 
 # File name: "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res.csv"

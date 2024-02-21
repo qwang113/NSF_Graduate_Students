@@ -30,7 +30,15 @@ show_obs <- function(curr_id, out.rm = FALSE){
  return(cowplot::plot_grid(obs_trace, obs_acf, ncol = 1))
 }
 
-show_pred <- function(curr_id = 1, scale_range = TRUE, out.rm = FALSE){
+show_pred <- function(curr_id = 1
+                      # , scale_range = TRUE, out.rm = FALSE
+                      ){
+  # pois_annoying_order <- order(unlist(apply(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res.csv")^2,1, sum) ), decreasing = TRUE)
+  # pca_annoying_order <- order(unlist(apply(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pca_res.csv")^2,1, sum) ), decreasing = TRUE)
+  # esn_annoying_order <- order(unlist(apply(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_200.csv")^2,1, sum) ), decreasing = TRUE)
+  pois_res <- unlist(apply(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res.csv")^2,1, sum))
+  pca_res <- unlist(apply(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pca_res.csv")^2,1, sum) )
+  esn_res <- unlist(apply(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_200.csv")^2,1, sum) )
   # if(out.rm){
   #   pois_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred_outrm.csv")
   #   pca_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pca_pred_outrm.csv")
@@ -73,14 +81,21 @@ show_pred <- function(curr_id = 1, scale_range = TRUE, out.rm = FALSE){
     geom_vline(xintercept = 2012, color = "black", lwd = 1, linetype= "dashed") +
     scale_color_manual(values = colorss) +
     theme(legend.position = "bottom") +
-    guides(color = guide_legend(title = "",override.aes = list(size = 5))) 
+    guides(color = guide_legend(title = "",override.aes = list(size = 5))) +
+    annotate("text", x= 1980, y = range(curr_y,pois_pred[curr_id,],pca_pred[curr_id,],esn_pred[curr_id,])[2], label= paste("Poisson SSE:", round(pois_res[curr_id],2)) ) +
+    annotate("text", x= 1980, y = 0.9*range(curr_y,pois_pred[curr_id,],pca_pred[curr_id,],esn_pred[curr_id,])[2], label= paste("PCA SSE:", round(pca_res[curr_id],2)) ) +
+    annotate("text", x= 1980, y = 0.8*range(curr_y,pois_pred[curr_id,],pca_pred[curr_id,],esn_pred[curr_id,])[2], label= paste("ESN SSE:", round(esn_res[curr_id],2)) ) 
+  # + 
+    # annotate("text", x = 4, y=13000, label = "ship") +
+    # annotate("text", x=8, y=13000, label= "boat") 
   
-  if(scale_range){
-    obs_trace <- obs_trace +  coord_cartesian(ylim =c(range(curr_y,pois_pred[curr_id,],pca_pred[curr_id,],esn_pred[curr_id,])[1],
-                                                      range(curr_y,pois_pred[curr_id,],pca_pred[curr_id,],esn_pred[curr_id,])[2] + sd(curr_y)) )
-  }else{
-    obs_trace +  coord_cartesian(ylim = range(curr_y))
-  }
+  # 
+  # if(scale_range){
+  #   obs_trace <- obs_trace +  coord_cartesian(ylim =c(range(curr_y,pois_pred[curr_id,],pca_pred[curr_id,],esn_pred[curr_id,])[1],
+  #                                                     range(curr_y,pois_pred[curr_id,],pca_pred[curr_id,],esn_pred[curr_id,])[2] + sd(curr_y)) )
+  # }else{
+  #   obs_trace +  coord_cartesian(ylim = range(curr_y))
+  # }
   
   return(obs_trace)
 }
@@ -98,18 +113,18 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   esn_annoying_order <- order(unlist(apply(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_200.csv")^2,1, sum) ), decreasing = TRUE)
   annoying_order <- rbind(pois_annoying_order, pca_annoying_order, esn_annoying_order)
     for (i in 1:nrow(nsf_wide_car)) {
-      cowplot::plot_grid(show_pred(pois_annoying_order[i], scale_range = TRUE), show_pred(pois_annoying_order[i], scale_range = FALSE), ncol = 1) 
-      ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Pois_PCA_ESN_FULL/pois_perform_decreasing/",i,
+     show_pred(pois_annoying_order[i])
+      ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Pois_PCA_ESN_FULL/pois_perform_decreasing/",i,"_",nsf_wide_car$ID[pois_annoying_order[i]],
                    nsf_long$col_sch[min(which(nsf_long$ID == nsf_wide_car$ID[pois_annoying_order[i]]))],".png",sep = ""))
     }
   for (i in 1:nrow(nsf_wide_car)) {
-    cowplot::plot_grid(show_pred(pca_annoying_order[i], scale_range = TRUE), show_pred(pca_annoying_order[i], scale_range = FALSE), ncol = 1) 
-    ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Pois_PCA_ESN_FULL/pca_perform_decreasing/",i,
+  show_pred(pca_annoying_order[i])
+    ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Pois_PCA_ESN_FULL/pca_perform_decreasing/",i,"_",nsf_wide_car$ID[pca_annoying_order[i]],
                  nsf_long$col_sch[min(which(nsf_long$ID == nsf_wide_car$ID[pca_annoying_order[i]]))],".png",sep = ""))
   }
   for (i in 1:nrow(nsf_wide_car)) {
-    cowplot::plot_grid(show_pred(esn_annoying_order[i], scale_range = TRUE), show_pred(esn_annoying_order[i], scale_range = FALSE), ncol = 1) 
-    ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Pois_PCA_ESN_FULL/esn_perform_decreasing/",i,
+   show_pred(esn_annoying_order[i])
+    ggsave(paste("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Pois_PCA_ESN_FULL/esn_perform_decreasing/",i,"_",nsf_wide_car$ID[esn_annoying_order[i]],
                  nsf_long$col_sch[min(which(nsf_long$ID == nsf_wide_car$ID[esn_annoying_order[i]]))],".png",sep = ""))
   }
   

@@ -216,9 +216,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   }
   
   
-  one_step_ahead_res <- nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
+  one_step_ahead_res <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
   mean(unlist(as.vector(one_step_ahead_res))^2)
-  var(unlist(as.vector(nsf_wide_car[,c((2012-1972+2):(ncol(nsf_wide_car)-1))])))
+  var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))
   
   
   # if(out.rm == 0){

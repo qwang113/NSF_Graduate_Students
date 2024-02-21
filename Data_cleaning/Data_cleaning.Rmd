@@ -124,12 +124,18 @@ long_omit_rows <- which(stay_dat_long$ID %in% c(too_many_0_ID, na_omit_rows))
 
 stay_dat_wide_final <- stay_dat_wide[-which(stay_dat_wide$ID %in% c(too_many_0_ID, na_omit_rows)),]
 stay_dat_long_final <- stay_dat_long[-long_omit_rows,]
+UNITID <- substr(stay_dat_wide_final$ID,1,6)
+nsf_wide <- cbind(UNITID,stay_dat_wide_final)
+carnegie_2021 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/2021.csv", header = TRUE)[,c(1,4)]
+colnames(carnegie_2021)[1] <- "UNITID"
+nsf_wide_car <- merge(nsf_wide, carnegie_2021, by = "UNITID")
 ```
 
 
 ```{r}
 write.csv(as.data.frame(stay_dat_long_final), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", row.names = FALSE)
 write.csv(as.data.frame(stay_dat_wide_final), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", row.names = FALSE)
+write.csv(as.data.frame(nsf_wide_car ), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_car.csv", row.names = FALSE)
 ```
 
 

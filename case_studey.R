@@ -77,7 +77,7 @@ for (cases_i in 1:5) {
     W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
     ar_col <- matrix(runif(nh,-a,a), nrow = 1)
     lambda_scale <- max(abs(eigen(W)$values))
-    curr_H <- matrix(tanh(nsf_wide_car[,10]), nrow = 1)%*% ar_col
+    curr_H <- tanh(matrix(nsf_wide_car[,10])%*% ar_col)
     Y <- nsf_wide_car[i,10]
     pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
     print("Calculating Recurrent H Matrix. . .")
@@ -131,26 +131,41 @@ var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))
 
 
 
+case_study_show <- function(curr_id = 1){
+  
+  library(ggplot2)
+  
+  
+  nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_car.csv")
+  nsf_long <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv")
+  
+  nsf_wide_car <- nsf_wide_car[which(nsf_wide_car$ID %in% cases),]
+  
+  curr_y <- unlist(nsf_wide_car[curr_id,-c(1:9,ncol(nsf_wide_car))])
+  
+  colorss <- c("Poisson" = "purple", "ESN_pooled" = "green", "ESN_sep" = "orange")
+  obs_trace <-
+    ggplot() +
+    geom_line(aes(x = 1972:2021, y = curr_y), col = "blue", linewidth = 2) +
+    geom_point(aes(x = 1972:2021, y = curr_y), col = "red", size = 2) +
+    labs(x = "Year", y = "Count", title = paste(nsf_long$col_sch[min(which(nsf_long$ID == nsf_wide_car$ID[curr_id]))]),
+         # ifelse(out.rm, "(Outlier Removed)","Full Dataset")), 
+         color = "Legend") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_line(aes(x = 2012:2021, y = as.numeric(pois_pred[curr_id,]), color = "Poisson"), lwd = 1) +
+    geom_point(aes(x = 2012:2021, y = as.numeric(pois_pred[curr_id,]), color = "Poisson"), size = 2) +
+    geom_line(aes(x = 2012:2021, y = as.numeric(esn_pre_pooled[curr_id,]), color = "ESN_pooled"), lwd = 1) +
+    geom_point(aes(x = 2012:2021, y = as.numeric(esn_pre_pooled[curr_id,]), color = "ESN_pooled"), size = 2) +
+    # geom_line(aes(x = 2012:2021, y = as.numeric(esn_pre_sep[curr_id,]), color = "ESN_sep"), lwd = 1) +
+    # geom_point(aes(x = 2012:2021, y = as.numeric(esn_pre_sep[curr_id,]), color = "ESN_sep"), size = 2) +
+    geom_vline(xintercept = 2012, color = "black", lwd = 1, linetype= "dashed")
+  
+  return(obs_trace)
+}
 
 
 
+cowplot::plot_grid( case_study_show(1),case_study_show(2),
+                    case_study_show(3),case_study_show(4),case_study_show(5),ncol = 1)
 
 
-
-
-
-obs_trace <-
-  ggplot() +
-  geom_line(aes(x = 1972:2021, y = curr_y), col = "blue", linewidth = 2) +
-  geom_point(aes(x = 1972:2021, y = curr_y), col = "red", size = 2) +
-  labs(x = "Year", y = "Count", title = paste(nsf_long$col_sch[min(which(nsf_long$ID == nsf_wide_car$ID[curr_id]))]),
-       # ifelse(out.rm, "(Outlier Removed)","Full Dataset")), 
-       color = "Legend") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  geom_line(aes(x = 2012:2021, y = as.numeric(pois_pred[curr_id,]), color = "Poisson"), lwd = 1) +
-  geom_point(aes(x = 2012:2021, y = as.numeric(pois_pred[curr_id,]), color = "Poisson"), size = 2) +
-  geom_line(aes(x = 2012:2021, y = as.numeric(pca_pred[curr_id,]), color = "PCA"), lwd = 1) +
-  geom_point(aes(x = 2012:2021, y = as.numeric(pca_pred[curr_id,]), color = "PCA"), size = 2) +
-  geom_line(aes(x = 2012:2021, y = as.numeric(esn_pred[curr_id,]), color = "ESN"), lwd = 1) +
-  geom_point(aes(x = 2012:2021, y = as.numeric(esn_pred[curr_id,]), color = "ESN"), size = 2) +
-  geom_vline(xintercept = 2012, color = "black", lwd = 1, linetype= "dashed")

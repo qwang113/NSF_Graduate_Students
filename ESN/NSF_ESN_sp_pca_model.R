@@ -65,9 +65,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   
   
   # Redefine three layers of basis images
-  basis_use_1_2d <- basis_1
-  basis_use_2_2d <- basis_3[,(ncol(basis_1)+1):ncol(basis_2)]
-  basis_use_3_2d <- basis_3[,(ncol(basis_2)+1):ncol(basis_3)]
+  basis_use_1_2d <- scale(basis_1)
+  basis_use_2_2d <- scale(basis_3[,(ncol(basis_1)+1):ncol(basis_2)])
+  basis_use_3_2d <- scale(basis_3[,(ncol(basis_2)+1):ncol(basis_3)])
   
   
   # First resolution
@@ -98,7 +98,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   }
   basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
   
-  a <- 0.01
+  a <- 1
   
   my_custom_initializer <- function(shape, dtype = NULL) {
     return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
@@ -109,25 +109,25 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # }
   
   
-  num_filters <- 200
+  num_filters <- 64
   
   st_model_res_1 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                   input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 1000, kernel_initializer = my_custom_initializer)
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   
   st_model_res_2 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                   input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten()%>% layer_dense(units = 1000, kernel_initializer = my_custom_initializer)
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   
   
   st_model_res_3 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                   input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 1000, kernel_initializer = my_custom_initializer)
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
   convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -152,7 +152,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # conv_covar <- conv_covar[,-zero_col]
   
   min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
-  conv_covar <- apply(conv_covar, 2, min_max_scale)
+  # conv_covar <- apply(conv_covar, 2, min_max_scale)
   # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
   
   nh <- 200 # Number of hidden units in RNN
@@ -162,7 +162,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   dummy_gss <- model.matrix(~ substr(nsf_wide_car$ID, 7, 9)  - 1)
   dummy_matrix <- cbind(dummy_car, dummy_gss, dummy_state)
   
-  a <- 0.01
+  a <- 0.1
   one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide_car), ncol = length(2012:2021))
   for (year in 2012:2021) {
     #Initialize
@@ -175,27 +175,29 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     ar_col <- matrix(runif(nh,-a,a), nrow = 1)
     lambda_scale <- max(abs(eigen(W)$values))
     # ux_sp <- conv_covar%*%U_sp
-    ux_sp <- conv_covar%*%U_sp/max(abs(eigen(U_sp%&%t(U_sp))$values))
+    # ux_sp <- conv_covar%*%U_sp/max(abs(eigen(U_sp%&%t(U_sp))$values))
     # ux_dummy <- dummy_matrix%*%U_dummy
-    ux_dummy <- dummy_matrix%*%U_dummy /max(svd(U_dummy)$d)
-    curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
+    ux_dummy <- dummy_matrix%*%U_dummy 
+    curr_H <- apply(ux_sp, c(1,2), tanh)
     prev_year <- nsf_wide_car[,10:(year-1972+9)]
-    pc_prev <- prcomp(t(prev_year), scale. = TRUE)$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
+    pc_prev_raw <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
+    pc_prev <- scale(pc_prev_raw)
     nx_pc <- ncol(pc_prev)
     U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
-    curr_H <- apply(ux_sp + ux_dummy, c(1,2), tanh)
+
     Y <- nsf_wide_car[,10]
     pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
+    print("Calculating Recurrent H Matrix. . .")
     for (i in 2:(year-1972+1)) {
       setTxtProgressBar(pb,i)
       curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
       new_H <- apply( 
-        nu/lambda_scale*
+        # nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W 
         # + ux_sp
-        # + ux_dummy
-        + nsf_wide_car[,i+8]%*%ar_col
-        # + curr_shared_pc%*% U_pc
+        # + tanh_ux_dummy
+        + log(nsf_wide_car[,i+8]+1)%*%ar_col
+        + curr_shared_pc %*% U_pc
         , c(1,2), tanh)
       
       Y <- c(Y, nsf_wide_car[,i+9])
@@ -208,11 +210,12 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     years_before <- year - 1972
     obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
     one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
-                                control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-    # one_step_ahead_model <- glm.nb(obs_y~.,  data = data.frame(cbind(obs_y, obs_H)),
-    #                             control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-    
+    control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+# 
+#     one_step_ahead_model <- lm(obs_y~., data = data.frame(cbind(obs_y, obs_H)))
+#     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
+#     
   }
   
   
@@ -220,10 +223,14 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   mean(unlist(as.vector(one_step_ahead_res))^2)
   var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))
   
+  # Write csv file
+  # write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
+  # write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)
+  
   
   # if(out.rm == 0){
-    write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
-    write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)
+    # write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
+    # write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)
   # }else{
   #   write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_outrm_",nh, ".csv", sep = ""), row.names = FALSE)
   #   write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_outrm_",nh, ".csv", sep = ""), row.names = FALSE)
@@ -256,7 +263,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 
 
 
-
+# Nodes, spatial resolutions, filters, 
 
 
 

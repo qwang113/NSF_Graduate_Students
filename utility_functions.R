@@ -134,17 +134,35 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 # }
 
 
-pois_res <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res_outrm.csv")
-pca_res <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pca_res_outrm.csv")
+pois_res <- rowSums(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res.csv")^2)
+pca_res <- rowSums(read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pca_res.csv")^2)
 nh = 200
-esn_res <- read.csv(paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_outrm_",nh, ".csv", sep = ""))
-
-pois_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred_outrm.csv")
-pca_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pca_pred_outrm.csv")
+esn_res <- rowSums(read.csv(paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""))^2)
+all_res <- rbind(pois_res, pca_res, esn_res)
+pois_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred.csv")
+pca_pred <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/pca_pred.csv")
 nh = 200
-esn_pred <- read.csv(paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_outrm_",nh, ".csv", sep = ""))
+esn_pred <- read.csv(paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""))
 
 
 mean(unlist(pois_res^2))
 mean(unlist(pca_res^2))
 mean(unlist(esn_res^2))
+
+
+
+
+#150136907
+#166629801
+#
+
+
+
+
+
+
+
+
+
+
+

@@ -114,20 +114,23 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   st_model_res_1 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                   input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten()
+  # %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   
   st_model_res_2 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                   input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten()
+  # %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   
   
   st_model_res_3 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                   input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten() 
+  # %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
   convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -147,12 +150,25 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # Begin recurrent part
   
   # If we only want the certain resolution
-  conv_covar <- conv_covar[,201:300]
+  conv_covar_pc_res_1 <- prcomp(convoluted_res1)
+  num_use_1 <- which(cumsum(conv_covar_pc_res_1$sdev^2)/sum(conv_covar_pc_res_1$sdev^2) <= 0.99)
+  pc_use_1 <- conv_covar_pc_res_1$x[,1:max(num_use_1)]
   
+  conv_covar_pc_res_2 <- prcomp(convoluted_res2)
+  num_use_2 <- which(cumsum(conv_covar_pc_res_2$sdev^2)/sum(conv_covar_pc_res_2$sdev^2) <= 0.99)
+  pc_use_2 <- conv_covar_pc_res_2$x[,1:max(num_use_2)]
+  
+  conv_covar_pc_res_3 <- prcomp(convoluted_res3)
+  num_use_3 <- which(cumsum(conv_covar_pc_res_3$sdev^2)/sum(conv_covar_pc_res_3$sdev^2) <= 0.99)
+  pc_use_3 <- conv_covar_pc_res_3$x[,1:max(num_use_3)]
+  
+  conv_covar <- cbind(pc_use_1, pc_use_2, pc_use_3)
+  min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
+  conv_covar <- tanh(conv_covar)
   # zero_col <- which(colSums(conv_covar)==0)
   # conv_covar <- conv_covar[,-zero_col]
   
-  min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
+  
   # conv_covar <- apply(conv_covar, 2, min_max_scale)
   # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
   
@@ -194,10 +210,10 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
       new_H <- apply( 
         nu/lambda_scale*
-          curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W 
+          curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
         # + ux_sp
-          + ux_dummy
-        + log(nsf_wide_car[,i+8]+1)%*%ar_col
+          # + ux_dummy
+         + log(nsf_wide_car[,i+8]+1)%*%ar_col
         # + curr_shared_pc %*% U_pc
         , c(1,2), tanh)
       

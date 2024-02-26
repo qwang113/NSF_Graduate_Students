@@ -143,10 +143,11 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
   }
   
-  rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d, basis_use_2_2d, basis_use_3_2d, convoluted_res1,convoluted_res2,convoluted_res3)
+  # rm(basis_1,basis_2, basis_3,basis_arr_1,basis_arr_2,basis_arr_3, basis_use_1_2d, basis_use_2_2d, basis_use_3_2d, convoluted_res1,convoluted_res2,convoluted_res3)
   # Begin recurrent part
   
-  
+  # If we only want the certain resolution
+  conv_covar <- conv_covar[,201:300]
   
   # zero_col <- which(colSums(conv_covar)==0)
   # conv_covar <- conv_covar[,-zero_col]
@@ -174,7 +175,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
     ar_col <- matrix(runif(nh,-a,a), nrow = 1)
     lambda_scale <- max(abs(eigen(W)$values))
-    # ux_sp <- conv_covar%*%U_sp
+    ux_sp <- conv_covar%*%U_sp
     # ux_sp <- conv_covar%*%U_sp/max(abs(eigen(U_sp%&%t(U_sp))$values))
     # ux_dummy <- dummy_matrix%*%U_dummy
     ux_dummy <- dummy_matrix%*%U_dummy 
@@ -192,12 +193,12 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       setTxtProgressBar(pb,i)
       curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
       new_H <- apply( 
-        # nu/lambda_scale*
+        nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W 
         # + ux_sp
-        # + tanh_ux_dummy
+          + ux_dummy
         + log(nsf_wide_car[,i+8]+1)%*%ar_col
-        + curr_shared_pc %*% U_pc
+        # + curr_shared_pc %*% U_pc
         , c(1,2), tanh)
       
       Y <- c(Y, nsf_wide_car[,i+9])

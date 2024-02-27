@@ -394,7 +394,7 @@ for (ensemble_idx in 1:num_ensemble) {
 
 ensemble_mean <- apply(one_step_ahead_pred_y, 1, mean)
 
-one_step_ahead_res <- st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)] - one_step_ahead_pred_y
+one_step_ahead_res <- st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)] - ensemble_mean
 mean(unlist(as.vector(one_step_ahead_res))^2)
 var(unlist(as.vector(st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)])))
 print(paste("Our Model explained ",100- mean(unlist(as.vector(one_step_ahead_res))^2)/var(unlist(as.vector(st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)])))*100," % ", sep = ""))

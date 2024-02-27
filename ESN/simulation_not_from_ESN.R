@@ -164,11 +164,11 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
-nh <- 100
+nh <- 200
 
 a <- 0.1
 
-num_ensemble <- 20
+num_ensemble <- 1
 one_step_ahead_pred_y <- array(NA, dim = c(num_ensemble, num_obs, length(41:50)) )
 for (ensemble_idx in 1:num_ensemble) {
   for (year in 41:50) {
@@ -190,7 +190,7 @@ for (ensemble_idx in 1:num_ensemble) {
       new_H <- apply( 
         nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H),]%*%W
-        + ux_sp
+        # + ux_sp
         + log(st_sim_dat[,i+2]+1)%*%ar_col*5
         , c(1,2), tanh)
       
@@ -203,23 +203,23 @@ for (ensemble_idx in 1:num_ensemble) {
     print(paste("Finding best regularization term for year",year))
     years_before <- year - 1
     obs_y <- Y[1:(years_before*nrow(st_sim_dat))]
-    # one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
-    #                             control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-    # one_step_ahead_pred_y[ensemble_idx,,year-40] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
-    cv <- cv.glmnet(obs_H, obs_y, family = poisson(link="log"))
-    one_step_ahead_model <- glmnet(obs_H, obs_y, family = poisson(link="log"), alpha = 1, lambda = cv$lambda.min,
-                                   control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-    one_step_ahead_pred_y[ensemble_idx,,year-40] <- predict(one_step_ahead_model, pred_H, type = "response")
+    one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
+                                control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+    one_step_ahead_pred_y[ensemble_idx,,year-40] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+    # cv <- cv.glmnet(obs_H, obs_y, family = poisson(link="log"))
+    # one_step_ahead_model <- glmnet(obs_H, obs_y, family = poisson(link="log"), alpha = 1, lambda = cv$lambda.min,
+    #                                control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+    # one_step_ahead_pred_y[ensemble_idx,,year-40] <- predict(one_step_ahead_model, pred_H, type = "response")
   }
 }
 
 
-
-one_step_ahead_res <- st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)] - one_step_ahead_pred_y
+ensemble_mean <- apply(one_step_ahead_pred_y, 1, mean)
+one_step_ahead_res <- st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)] - ensemble_mean
 mean(unlist(as.vector(one_step_ahead_res))^2)
 var(unlist(as.vector(st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)])))
 print(paste("Our Model explained ",100- mean(unlist(as.vector(one_step_ahead_res))^2)/var(unlist(as.vector(st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)])))*100," % ", sep = ""))
-# 
+
 # glmnet_res <- glmnet::cv.glmnet(x = obs_H, y = obs_y, family = poisson(link = "log")) 
 # glm_model <- glmnet(obs_H, obs_y)
 # Total var: 2389.072
@@ -228,6 +228,6 @@ print(paste("Our Model explained ",100- mean(unlist(as.vector(one_step_ahead_res
 
 
 # cv <- cv.glmnet(obs_H, obs_y, family = poisson(link = "log") )
-one_step_ahead_model <- glmnet(obs_H, obs_y, family = poisson(link="log"), alpha = 1, lambda = cv$lambda.min,
-                            control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-predict(one_step_ahead_model, pred_H, type = "response")
+# one_step_ahead_model <- glmnet(obs_H, obs_y, family = poisson(link="log"), alpha = 1, lambda = cv$lambda.min,
+#                             control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+# predict(one_step_ahead_model, pred_H, type = "response")

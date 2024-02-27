@@ -16,32 +16,14 @@ library(glmnet)
 library(MASS)
 use_condaenv("tf_gpu")
 
-num_obs <- 100
-coords_long <- rnorm(100)
-coords_lat <- rnorm(100)
-range = 1
-sill =1
-paired_dist <- as.matrix(dist(cbind(coords_long, coords_lat), diag = TRUE, upper = TRUE))
-conv_mat <- exp(-paired_dist/range) * sill^2
-#Initialization
-log_lambda_vec = y_vec <- matrix(NA, ncol = 50, nrow = 100)
-log_lambda_vec[,1] <- rmvnorm(1, mean = rep(0, ncol(conv_mat)), sigma = conv_mat)
-y_vec[,1] <- rpois(100, lambda = exp(log_lambda_vec[,1]))
-for (time in 2:50) {
-  log_lambda_vec[,time] = rmvnorm(1, mean = log(y_vec[,time-1]+1)*0.9, sigma = conv_mat)
-  y_vec[,time] <- rpois(100, lambda = exp(log_lambda_vec[,time]))
-  }
 
-st_sim_dat <- cbind(1:100, coords_long, coords_lat, y_vec)
-colnames(st_sim_dat) <- c("ID","long","lat", 1:50)
 
-st_sim_dat <- data.frame(st_sim_dat)
-
+st_sim_dat <- read.csv(here::here("esn_sim.csv"))
 coords <- data.frame("long" = st_sim_dat$long, "lat" = st_sim_dat$lat)
 long <- coords$long
 lat <- coords$lat
 
-
+########################################Simulation for spatial CNN output
 
 coordinates(coords) <- ~ long + lat
 
@@ -112,7 +94,8 @@ for (i in 1:nrow(coords@coords)) {
 }
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
-a <- 1
+
+a <- 0.1
 
 my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
@@ -128,20 +111,20 @@ num_filters <- 64
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten()%>% layer_dense(units = 300, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_flatten()%>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten()%>% layer_dense(units = 300, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_flatten()%>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>% layer_dense(units = 300, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -157,57 +140,62 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
-nh <- 50
 
-a <- 0.001
-one_step_ahead_pred_y <- matrix(NA, nrow = nrow(st_sim_dat), ncol = length(41:50))
-for (year in 41:50) {
-  #Initialize
-  nx_sp <- ncol(conv_covar)
-  nu <- 1
-  W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-  U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
-  ar_col <- matrix(runif(nh,-a,a), nrow = 1)
-  lambda_scale <- max(abs(eigen(W)$values))
-  ux_sp <- conv_covar%*%U_sp
-  curr_H <- apply(ux_sp, c(1,2), tanh)
-  Y <- st_sim_dat[,4]
-  pb <- txtProgressBar(min = 1, max = year, style = 3)
-  print("Calculating Recurrent H Matrix. . .")
-  for (i in 2:(year)) {
-    setTxtProgressBar(pb,i)
-    new_H <- apply( 
-      nu/lambda_scale*
-        curr_H[(nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H),]%*%W
-      + ux_sp
-      + log(st_sim_dat[,i+2]+1)%*%ar_col*100
-      , c(1,2), tanh)
-    
-    Y <- c(Y, st_sim_dat[,i+3])
-    curr_H <- rbind(curr_H, new_H)
+
+
+########################ESN part############################
+
+
+num_ensemble <- 1
+one_step_ahead_pred_y <- array(NA, dim = c(num_ensemble, nrow(st_sim_dat), length(41:50)) )
+nh = 500
+for (ensemble_idx in 1:num_ensemble) {
+  for (year in 41:50) {
+    print(paste("Ensemble",ensemble_idx, "year",year ))
+    #Initialize
+    nx_sp <- ncol(conv_covar)
+    nu <- 1
+    W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
+    U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
+    ar_col <- matrix(runif(nh,-a,a), nrow = 1)
+    lambda_scale <- max(abs(eigen(W)$values))
+    ux_sp <- conv_covar%*%U_sp
+    curr_H <- apply(ux_sp, c(1,2), tanh)
+    Y <- st_sim_dat[,4]
+    pb <- txtProgressBar(min = 1, max = year, style = 3)
+    print("Calculating Recurrent H Matrix. . .")
+    for (i in 2:(year)) {
+      setTxtProgressBar(pb,i)
+      new_H <- apply( 
+        nu/lambda_scale*
+          curr_H[(nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H),]%*%W
+        + ux_sp
+        + st_sim_dat[,i+2]%*%ar_col
+        , c(1,2), tanh)
+      
+      Y <- c(Y, st_sim_dat[,i+3])
+      curr_H <- rbind(curr_H, new_H)
+    }
+    colnames(curr_H) <- paste("node", 1:ncol(curr_H))
+    obs_H <- curr_H[-c((nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H)),]
+    pred_H <- curr_H[c((nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H)),]
+    print(paste("Finding best regularization term for year",year))
+    years_before <- year - 1
+    obs_y <- Y[1:(years_before*nrow(st_sim_dat))]
+    one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
+                                control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+    one_step_ahead_pred_y[ensemble_idx,,year-40] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+    # cv <- cv.glmnet(obs_H, obs_y, family = poisson(link="log"))
+    # one_step_ahead_model <- glmnet(obs_H, obs_y, family = poisson(link="log"), alpha = 1, lambda = cv$lambda.min,
+    #                                control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+    # one_step_ahead_pred_y[ensemble_idx,,year-40] <- predict(one_step_ahead_model, pred_H, type = "response")
   }
-  colnames(curr_H) <- paste("node", 1:ncol(curr_H))
-  obs_H <- curr_H[-c((nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H)),]
-  pred_H <- curr_H[c((nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H)),]
-  print(paste("Now doing year",year))
-  years_before <- year - 1
-  obs_y <- Y[1:(years_before*nrow(st_sim_dat))]
-  one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
-                              control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-  one_step_ahead_pred_y[,year-40] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
-  # 
-  #     one_step_ahead_model <- lm(obs_y~., data = data.frame(cbind(obs_y, obs_H)))
-  #     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
-  #     
 }
 
+ensemble_mean <- apply(one_step_ahead_pred_y, 1, mean)
 
 one_step_ahead_res <- st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)] - one_step_ahead_pred_y
 mean(unlist(as.vector(one_step_ahead_res))^2)
 var(unlist(as.vector(st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)])))
+print(paste("Our Model explained ",100- mean(unlist(as.vector(one_step_ahead_res))^2)/var(unlist(as.vector(st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)])))*100," % ", sep = ""))
 
-glmnet_res <- glmnet::cv.glmnet(x = obs_H, y = obs_y, family = poisson(link = "log")) 
-glm_model <- glmnet(obs_H, obs_y)
-# Total var: 2389.072
-# Without sp: 1514.139
-# With sp:

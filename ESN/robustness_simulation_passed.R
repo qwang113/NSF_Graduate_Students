@@ -35,10 +35,10 @@ gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "Ga
 gridbasis2 <- auto_basis(mainfold = plane(), data = coords, nres = 2, type = "Gaussian", regular = 1)
 gridbasis3 <- auto_basis(mainfold = plane(), data = coords, nres = 3, type = "Gaussian", regular = 1)
 
-show_basis(gridbasis3) + 
-  coord_fixed() +
-  xlab("Longitude") +
-  ylab("Latitude")
+# show_basis(gridbasis3) + 
+#   coord_fixed() +
+#   xlab("Longitude") +
+#   ylab("Latitude")
 
 
 
@@ -99,9 +99,10 @@ for (i in 1:nrow(coords@coords)) {
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
 
+
 for (seed in 1:1e10) {
   set.seed(seed)
-  
+  print(paste("Trying to simulate a dataset, attempt",seed))
   a <- 0.1
   
   my_custom_initializer <- function(shape, dtype = NULL) {
@@ -230,10 +231,10 @@ gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "Ga
 gridbasis2 <- auto_basis(mainfold = plane(), data = coords, nres = 2, type = "Gaussian", regular = 1)
 gridbasis3 <- auto_basis(mainfold = plane(), data = coords, nres = 3, type = "Gaussian", regular = 1)
 
-show_basis(gridbasis3) + 
-  coord_fixed() +
-  xlab("Longitude") +
-  ylab("Latitude")
+# show_basis(gridbasis3) + 
+#   coord_fixed() +
+#   xlab("Longitude") +
+#   ylab("Latitude")
 
 
 

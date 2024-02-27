@@ -176,9 +176,10 @@ for (seed in 1:1e10) {
   colnames(st_sim_dat) <- c("ID","long","lat", 1:50)
   st_sim_dat <- data.frame(st_sim_dat)
   
-  if(max(st_sim_dat)>100 & diff(range(st_sim_dat)<=200)){break}
+  if( (max(st_sim_dat)>100) & (diff(range(st_sim_dat))<=200)){break}
   
 }
+print("DATA GENERATION SUCCEEDED")
 write.csv(st_sim_dat, here::here("esn_sim_test.csv"),row.names = FALSE)
 
 
@@ -346,7 +347,7 @@ for (i in 1:length(long)) {
 
 num_ensemble <- 1
 one_step_ahead_pred_y <- array(NA, dim = c(num_ensemble, nrow(st_sim_dat), length(41:50)) )
-nh = 500
+nh = 200
 for (ensemble_idx in 1:num_ensemble) {
   for (year in 41:50) {
     print(paste("Ensemble",ensemble_idx, "year",year ))

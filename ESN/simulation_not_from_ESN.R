@@ -168,7 +168,7 @@ nh <- 200
 
 a <- 0.1
 
-num_ensemble <- 1
+num_ensemble <- 10
 one_step_ahead_pred_y <- array(NA, dim = c(num_ensemble, num_obs, length(41:50)) )
 for (ensemble_idx in 1:num_ensemble) {
   for (year in 41:50) {
@@ -190,8 +190,8 @@ for (ensemble_idx in 1:num_ensemble) {
       new_H <- apply( 
         nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H),]%*%W
-        # + ux_sp
-        + log(st_sim_dat[,i+2]+1)%*%ar_col*5
+        + ux_sp
+        + st_sim_dat[,i+2]%*%ar_col
         , c(1,2), tanh)
       
       Y <- c(Y, st_sim_dat[,i+3])
@@ -214,7 +214,7 @@ for (ensemble_idx in 1:num_ensemble) {
 }
 
 
-ensemble_mean <- apply(one_step_ahead_pred_y, 1, mean)
+ensemble_mean <- apply(one_step_ahead_pred_y,c(2,3),mean)
 one_step_ahead_res <- st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)] - ensemble_mean
 mean(unlist(as.vector(one_step_ahead_res))^2)
 var(unlist(as.vector(st_sim_dat[,(ncol(st_sim_dat)-9):ncol(st_sim_dat)])))

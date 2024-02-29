@@ -11,17 +11,8 @@ library(tensorflow)
 library(glmnet)
 library(MASS)
 use_condaenv("tf_gpu")
-# out.rm = 1
 nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_car.csv")
-  # if(out.rm)
-  # {
-  #   # Remove outliers
-  #   nh = 200
-  #   osh_res <- read.csv(paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""))
-  #   annoying_cases <- order(apply(unlist(as.matrix(osh_res^2)), 1, mean), decreasing = TRUE)
-  #   nsf_wide_car <- nsf_wide_car[-annoying_cases[1:100],]
-  # }
-  
+
   
   coords <- data.frame("long" = nsf_wide_car$long, "lat" = nsf_wide_car$lat)
   long <- coords$long
@@ -65,9 +56,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   
   
   # Redefine three layers of basis images
-  basis_use_1_2d <- scale(basis_1)
-  basis_use_2_2d <- scale(basis_3[,(ncol(basis_1)+1):ncol(basis_2)])
-  basis_use_3_2d <- scale(basis_3[,(ncol(basis_2)+1):ncol(basis_3)])
+  basis_use_1_2d <- basis_1
+  basis_use_2_2d <- basis_3[,(ncol(basis_1)+1):ncol(basis_2)]
+  basis_use_3_2d <- basis_3[,(ncol(basis_2)+1):ncol(basis_3)]
   
   
   # First resolution
@@ -98,39 +89,34 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   }
   basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
   
-  a <- 1
+  a <- 0.1
   
   my_custom_initializer <- function(shape, dtype = NULL) {
     return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
   }
   
-  # my_custom_initializer <- function(shape, dtype = NULL) {
-  #   return(tf$random$normal(shape,mean = 0, stddev = 0.1, dtype = dtype))
-  # }
+
   
   
   num_filters <- 64
   
   st_model_res_1 <- keras_model_sequential() %>%
-    layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
+    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
                   input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten()
-  # %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   
   st_model_res_2 <- keras_model_sequential() %>%
-    layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
+    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
                   input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten()
-  # %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   
   
   st_model_res_3 <- keras_model_sequential() %>%
-    layer_conv_2d(filters = num_filters, kernel_size = c(2, 2), activation = "sigmoid",
+    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
                   input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() 
-  # %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
   
   convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
   convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -150,28 +136,28 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # Begin recurrent part
   
   # If we only want the certain resolution
-  conv_covar_pc_res_1 <- prcomp(convoluted_res1)
-  num_use_1 <- which(cumsum(conv_covar_pc_res_1$sdev^2)/sum(conv_covar_pc_res_1$sdev^2) <= 0.99)
-  pc_use_1 <- conv_covar_pc_res_1$x[,1:max(num_use_1)]
-  
-  conv_covar_pc_res_2 <- prcomp(convoluted_res2)
-  num_use_2 <- which(cumsum(conv_covar_pc_res_2$sdev^2)/sum(conv_covar_pc_res_2$sdev^2) <= 0.99)
-  pc_use_2 <- conv_covar_pc_res_2$x[,1:max(num_use_2)]
-  
-  conv_covar_pc_res_3 <- prcomp(convoluted_res3)
-  num_use_3 <- which(cumsum(conv_covar_pc_res_3$sdev^2)/sum(conv_covar_pc_res_3$sdev^2) <= 0.99)
-  pc_use_3 <- conv_covar_pc_res_3$x[,1:max(num_use_3)]
-  
-  conv_covar <- cbind(pc_use_1, pc_use_2, pc_use_3)
-  min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
-  conv_covar <- tanh(conv_covar)
+  # conv_covar_pc_res_1 <- prcomp(convoluted_res1)
+  # num_use_1 <- which(cumsum(conv_covar_pc_res_1$sdev^2)/sum(conv_covar_pc_res_1$sdev^2) <= 0.99)
+  # pc_use_1 <- conv_covar_pc_res_1$x[,1:max(num_use_1)]
+  # 
+  # conv_covar_pc_res_2 <- prcomp(convoluted_res2)
+  # num_use_2 <- which(cumsum(conv_covar_pc_res_2$sdev^2)/sum(conv_covar_pc_res_2$sdev^2) <= 0.99)
+  # pc_use_2 <- conv_covar_pc_res_2$x[,1:max(num_use_2)]
+  # 
+  # conv_covar_pc_res_3 <- prcomp(convoluted_res3)
+  # num_use_3 <- which(cumsum(conv_covar_pc_res_3$sdev^2)/sum(conv_covar_pc_res_3$sdev^2) <= 0.99)
+  # pc_use_3 <- conv_covar_pc_res_3$x[,1:max(num_use_3)]
+  # 
+  # conv_covar <- cbind(pc_use_1, pc_use_2, pc_use_3)
+  # min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
+  # conv_covar <- tanh(conv_covar)
   # zero_col <- which(colSums(conv_covar)==0)
   # conv_covar <- conv_covar[,-zero_col]
   
   
   # conv_covar <- apply(conv_covar, 2, min_max_scale)
   # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
-  
+  # conv_covar <- basis_3
   nh <- 200 # Number of hidden units in RNN
   
   dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
@@ -192,15 +178,14 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     ar_col <- matrix(runif(nh,-a,a), nrow = 1)
     lambda_scale <- max(abs(eigen(W)$values))
     ux_sp <- conv_covar%*%U_sp
-    # ux_sp <- conv_covar%*%U_sp/max(abs(eigen(U_sp%&%t(U_sp))$values))
     # ux_dummy <- dummy_matrix%*%U_dummy
     ux_dummy <- dummy_matrix%*%U_dummy 
     curr_H <- apply(ux_sp, c(1,2), tanh)
-    prev_year <- nsf_wide_car[,10:(year-1972+9)]
-    pc_prev_raw <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
-    pc_prev <- scale(pc_prev_raw)
-    nx_pc <- ncol(pc_prev)
-    U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
+    # prev_year <- nsf_wide_car[,10:(year-1972+9)]
+    # pc_prev_raw <- prcomp(t(prev_year))$x[,1:min(which(cumsum(prcomp(t(prev_year))$sdev^2)/sum(prcomp(t(prev_year))$sdev^2)  > 0.95))]
+    # pc_prev <- scale(pc_prev_raw)
+    # nx_pc <- ncol(pc_prev)
+    # U_pc <- matrix(runif(nh*nx_pc, -a,a), nrow = nx_pc)
 
     Y <- nsf_wide_car[,10]
     pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
@@ -211,7 +196,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       new_H <- apply( 
         nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
-        # + ux_sp
+        + ux_sp
           # + ux_dummy
          + log(nsf_wide_car[,i+8]+1)%*%ar_col
         # + curr_shared_pc %*% U_pc
@@ -239,7 +224,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   one_step_ahead_res <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
   mean(unlist(as.vector(one_step_ahead_res))^2)
   var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))
-  
+  print(1-mean(unlist(as.vector(one_step_ahead_res))^2)/var((unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))))
   # Write csv file
   # write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
   # write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)
@@ -281,9 +266,6 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 
 
 # Nodes, spatial resolutions, filters, 
-
-
-
 
 
 

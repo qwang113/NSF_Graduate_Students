@@ -20,6 +20,10 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # carnegie_1994 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1994.csv", header = TRUE)
   # carnegie_1995 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1995.csv", header = TRUE)
   
+  ggplot() +
+    geom_point(aes(x = jitter(long), y = jitter(lat), col = nsf_wide_car$X1972)) +
+    scale_color_viridis_c(limits = c(0,200)) 
+  
   coordinates(coords) <- ~ long + lat
   
   gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "Gaussian", regular = 1)

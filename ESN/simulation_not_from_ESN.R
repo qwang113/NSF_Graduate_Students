@@ -102,9 +102,9 @@ for (i in 1:length(gridbasis3@fn)) {
 
 
 # Redefine three layers of basis images
-basis_use_1_2d <- scale(basis_1)
-basis_use_2_2d <- scale(basis_3[,(ncol(basis_1)+1):ncol(basis_2)])
-basis_use_3_2d <- scale(basis_3[,(ncol(basis_2)+1):ncol(basis_3)])
+basis_use_1_2d <- basis_1
+basis_use_2_2d <- basis_3[,(ncol(basis_1)+1):ncol(basis_2)]
+basis_use_3_2d <- basis_3[,(ncol(basis_2)+1):ncol(basis_3)]
 
 
 # First resolution

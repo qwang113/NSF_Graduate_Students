@@ -196,7 +196,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     print("Calculating Recurrent H Matrix. . .")
     for (i in 2:(year-1972+1)) {
       setTxtProgressBar(pb,i)
-      curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
+      # curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
       new_H <- apply( 
         nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
@@ -215,6 +215,14 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     print(paste("Now doing year",year))
     years_before <- year - 1972
     obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
+    
+    # Ridge regression
+    # ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
+    # ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
+    # all_pred <- predict(ridge_model, new_H, type = "response")
+    # picked_idx <- which.min(colSums(all_pred - nsf_wide_car[,year-1972+10])^2)
+    # one_step_ahead_pred_y[,year-2011] <- all_pred[,picked_idx]
+    # 
     one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
     control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")

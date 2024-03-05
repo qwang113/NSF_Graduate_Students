@@ -171,6 +171,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   
   a <- 0.1
   one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide_car), ncol = length(2012:2021))
+  leak <- 1
   for (year in 2012:2021) {
     #Initialize
     nx_sp <- ncol(conv_covar)
@@ -200,15 +201,16 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       new_H <- apply( 
         nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
-        + ux_sp
-          # + ux_dummy
+        # + ux_sp
+          + ux_dummy
          + log(nsf_wide_car[,i+8]+1)%*%ar_col
         # + curr_shared_pc %*% U_pc
-        , c(1,2), tanh)
+        , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
       
       Y <- c(Y, nsf_wide_car[,i+9])
       curr_H <- rbind(curr_H, new_H)
     }
+    # curr_H <- cbind(curr_H, curr_H^2)
     colnames(curr_H) <- paste("node", 1:ncol(curr_H))
     obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
     pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
@@ -217,15 +219,15 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
     
     # Ridge regression
-    # ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
-    # ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
-    # all_pred <- predict(ridge_model, new_H, type = "response")
-    # picked_idx <- which.min(colSums(all_pred - nsf_wide_car[,year-1972+10])^2)
-    # one_step_ahead_pred_y[,year-2011] <- all_pred[,picked_idx]
-    # 
-    one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
-    control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-    one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+    ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
+    ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
+    all_pred <- predict(ridge_model, new_H, type = "response")
+    picked_idx <- which.min(colSums(all_pred - nsf_wide_car[,year-1972+10])^2)
+    one_step_ahead_pred_y[,year-2011] <- all_pred[,picked_idx]
+    
+    # one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
+    # control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+    # one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
 # 
 #     one_step_ahead_model <- lm(obs_y~., data = data.frame(cbind(obs_y, obs_H)))
 #     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))

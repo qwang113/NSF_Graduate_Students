@@ -1,4 +1,4 @@
-rm(list = ls())
+{rm(list = ls())
 library(sp)
 library(fields)
 library(mvtnorm)
@@ -15,19 +15,26 @@ library(tensorflow)
 library(glmnet)
 library(MASS)
 use_condaenv("tf_gpu")
+}
+grid_obs <- 20
+# coords_long <- runif(num_obs)
+# coords_lat <- runif(num_obs)
 
-num_obs <- 200
-coords_long <- runif(num_obs)
-coords_lat <- runif(num_obs)
-range = 0.5
-sill = 0.3
+long <- seq(0,1, length.out = grid_obs)
+lat <- seq(0,1, length.out = grid_obs)
+coords <- expand.grid(long, lat)
+coords_long <- coords$Var1
+coords_lat <- coords$Var2
 
+num_obs <- grid_obs^2
+
+range = 0.8
+sill = 0.95
 
 paired_dist <- as.matrix(dist(cbind(coords_long, coords_lat), diag = TRUE, upper = TRUE))
 conv_mat <- exp(-paired_dist/range) * sill^2
 #Initialization
 log_lambda_vec = y_vec <- matrix(NA, ncol = 50, nrow = num_obs)
-
 
 log_lambda_vec[,1] <- rmvnorm(1, mean = rep(3, ncol(conv_mat)), sigma = conv_mat)
 
@@ -35,7 +42,8 @@ log_lambda_vec[,1] <- rmvnorm(1, mean = rep(3, ncol(conv_mat)), sigma = conv_mat
 y_vec[,1] <- rpois(num_obs, lambda = exp(log_lambda_vec[,1]))
 
 for (time in 2:50) {
-  log_lambda_vec[,time] = rmvnorm(1, mean = log_lambda_vec[,time-1]*1, sigma = conv_mat)
+  print(time)
+  log_lambda_vec[,time] = rmvnorm(1, mean = log_lambda_vec[,time-1]*0.9, sigma = conv_mat)
   y_vec[,time] <- rpois(num_obs, lambda = exp(log_lambda_vec[,time]))
   }
 
@@ -47,17 +55,9 @@ st_sim_dat <- data.frame(st_sim_dat)
 
 
 
-
 ggplot() +
-  geom_point(aes(x = st_sim_dat$long, y = st_sim_dat$lat, color = st_sim_dat[,5])) +
+  geom_point(aes(x = st_sim_dat$long, y = st_sim_dat$lat, color = st_sim_dat[,50])) +
   scale_color_viridis_c()
-
-
-
-
-
-
-
 
 
 coords <- data.frame("long" = st_sim_dat$long, "lat" = st_sim_dat$lat)
@@ -146,7 +146,7 @@ my_custom_initializer <- function(shape, dtype = NULL) {
 # }
 
 
-num_filters <- 5
+num_filters <- 64
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
@@ -164,20 +164,20 @@ st_model_res_2 <- keras_model_sequential() %>%
 
 
 st_model_res_3 <- keras_model_sequential() %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(5, 5), activation = "sigmoid",
+  layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(5, 5), activation = "sigmoid",
-                kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
-                kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
-                kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
-                kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
-                kernel_initializer = my_custom_initializer) %>%
-  layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
-                kernel_initializer = my_custom_initializer) %>%
+  # layer_conv_2d(filters = num_filters, kernel_size = c(5, 5), activation = "sigmoid",
+  #               kernel_initializer = my_custom_initializer) %>%
+  # layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+  #               kernel_initializer = my_custom_initializer) %>%
+  # layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+  #               kernel_initializer = my_custom_initializer) %>%
+  # layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+  #               kernel_initializer = my_custom_initializer) %>%
+  # layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+  #               kernel_initializer = my_custom_initializer) %>%
+  # layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+  #               kernel_initializer = my_custom_initializer) %>%
   layer_flatten() 
 # %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
 
@@ -226,8 +226,8 @@ for (ensemble_idx in 1:num_ensemble) {
       setTxtProgressBar(pb,i)
       new_H <- apply( 
         nu/lambda_scale*
-          curr_H[(nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H),]%*%W
-        + ux_sp
+          curr_H[(nrow(curr_H)-nrow(st_sim_dat)+1):nrow(curr_H),]%*%W*0.00001
+        # + ux_sp
         + matrix(log(st_sim_dat[,i+2]+1), ncol = 1)%*% ar_col
         , c(1,2), tanh)
       Y <- c(Y, st_sim_dat[,i+3])

@@ -1,4 +1,4 @@
-rm(list = ls())
+{rm(list = ls())
 library(ggplot2)
 library(sp)
 library(fields)
@@ -11,6 +11,7 @@ library(tensorflow)
 library(glmnet)
 library(MASS)
 use_condaenv("tf_gpu")
+}
 nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_car.csv")
 
   
@@ -93,7 +94,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   }
   basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
   
-  a <- 0.1
+  a <- 1
   
   my_custom_initializer <- function(shape, dtype = NULL) {
     return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
@@ -105,22 +106,22 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   num_filters <- 64
   
   st_model_res_1 <- keras_model_sequential() %>%
-    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                   input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
   
   
   st_model_res_2 <- keras_model_sequential() %>%
-    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                   input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
   
   
   
   st_model_res_3 <- keras_model_sequential() %>%
-    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "sigmoid",
+    layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                   input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "sigmoid")
+    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
   
   convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
   convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -162,7 +163,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # conv_covar <- apply(conv_covar, 2, min_max_scale)
   # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
   # conv_covar <- basis_3
-  nh <- 200 # Number of hidden units in RNN
+  nh <- 250 # Number of hidden units in RNN
   
   dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
   dummy_state <- model.matrix(~nsf_wide_car$state - 1)
@@ -202,7 +203,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
         nu/lambda_scale*
           curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
         # + ux_sp
-          + ux_dummy
+          # + ux_dummy
          + log(nsf_wide_car[,i+8]+1)%*%ar_col
         # + curr_shared_pc %*% U_pc
         , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
@@ -210,25 +211,30 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       Y <- c(Y, nsf_wide_car[,i+9])
       curr_H <- rbind(curr_H, new_H)
     }
-    # curr_H <- cbind(curr_H, curr_H^2)
+    
+    # sp_cnn <- matrix(rep( t(basis_use_2_2d), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
+    # curr_H <- cbind(curr_H, sp_cnn)
     colnames(curr_H) <- paste("node", 1:ncol(curr_H))
     obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
     pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
-    print(paste("Now doing year",year))
+    print(paste("Now predicting year",year))
     years_before <- year - 1972
     obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
     
     # Ridge regression
-    ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
-    ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, family = poisson(link = "log"), trace.it = 1)
-    all_pred <- predict(ridge_model, new_H, type = "response")
-    picked_idx <- which.min(colSums(all_pred - nsf_wide_car[,year-1972+10])^2)
-    one_step_ahead_pred_y[,year-2011] <- all_pred[,picked_idx]
+    lasso_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 1, family = "poisson", trace.it = 1, nfolds = 3)
+    lasso_model <- glmnet(x = obs_H, y = obs_y, alpha = 1, 
+                          trace.it = 1, lambda = lasso_model_cv$lambda.min, family = "poisson")
     
-    # one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
-    # control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-    # one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+    one_step_ahead_pred_y[,year-2011] <- predict(ridge_model, new_H, type = "response")
+    # all_pred <- predict(ridge_model, new_H, type = "response")
+    # picked_idx <- which.min(colSums(all_pred - nsf_wide_car[,year-1972+10])^2)
+    # one_step_ahead_pred_y[,year-2011] <- all_pred[,picked_idx]
 # 
+# one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
+# control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+# one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+
 #     one_step_ahead_model <- lm(obs_y~., data = data.frame(cbind(obs_y, obs_H)))
 #     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
 #     
@@ -257,30 +263,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 # Prediction file: paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = "")
 #Note: Total oo var is 9199.715, 
 
-# MSE in each case is as follows:
-# a = 0.01, PC scaled, nu = 1, 200 nodes
-#1. Pois with everything: 882.71  Y_{t-1} not logged
-#2. Pois without sp: 777.5057  Y_{t-1} not logged
-#3. Pois without sp, without EOF: 655.0542
-#4. Pois without sp, without EOF, without covariates: 653.552
-#5. Pois with no covariates: 9274.638 bad model
-## We can't take log Y, or the prediction MSE goes exploded, bigger than 3e5
-
-# a = 0.01, PC scaled, nu = 1, 500 nodes
-#1. Pois with everything but sp: 1188.984 Y_{t-1} not logged   seems like overfitting
 
 
-# a = 0.01, PC scaled, nu = 1, 300 nodes
-#1. Pois with everything but sp: 980.2472 Y_{t-1} not logged   seems like overfitting
-
-
-# a = 0.01, PC scaled, nu = 1, 100 nodes
-#1. Pois with everything but sp: 965
-
-
-
-# Nodes, spatial resolutions, filters, 
-
-
-
-
+# sp basis outside of ESN, no CNN
+# sp CNN outside of ESN
+# Find a way to run it more efficiently
+# Adding more details about the ESN 0

@@ -163,7 +163,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # conv_covar <- apply(conv_covar, 2, min_max_scale)
   # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
   # conv_covar <- basis_3
-  nh <- 250 # Number of hidden units in RNN
+  nh <- 200 # Number of hidden units in RNN
   
   dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
   dummy_state <- model.matrix(~nsf_wide_car$state - 1)
@@ -171,7 +171,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   dummy_matrix <- cbind(dummy_car, dummy_gss, dummy_state)
   
   a <- 0.1
-  one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide_car), ncol = length(2012:2021))
+  one_step_ahead_pred_y_ridge <- one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide_car), ncol = length(2012:2021))
   leak <- 1
   for (year in 2012:2021) {
     #Initialize
@@ -212,8 +212,8 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       curr_H <- rbind(curr_H, new_H)
     }
     
-    # sp_cnn <- matrix(rep( t(basis_use_2_2d), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
-    # curr_H <- cbind(curr_H, sp_cnn)
+    sp_cnn <- matrix(rep( t(basis_use_2_2d), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
+    curr_H <- cbind(curr_H, sp_cnn)
     colnames(curr_H) <- paste("node", 1:ncol(curr_H))
     obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
     pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
@@ -222,18 +222,16 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
     
     # Ridge regression
-    lasso_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 1, family = "poisson", trace.it = 1, nfolds = 3)
-    lasso_model <- glmnet(x = obs_H, y = obs_y, alpha = 1, 
-                          trace.it = 1, lambda = lasso_model_cv$lambda.min, family = "poisson")
+    ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = "poisson", trace.it = 1, nfolds = 5)
+    ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, 
+                          trace.it = 1, lambda = ridge_model_cv$lambda.min, family = "poisson")
     
-    one_step_ahead_pred_y[,year-2011] <- predict(ridge_model, new_H, type = "response")
-    # all_pred <- predict(ridge_model, new_H, type = "response")
-    # picked_idx <- which.min(colSums(all_pred - nsf_wide_car[,year-1972+10])^2)
-    # one_step_ahead_pred_y[,year-2011] <- all_pred[,picked_idx]
-# 
-# one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
-# control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-# one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+    one_step_ahead_pred_y_ridge[,year-2011] <- predict(ridge_model, pred_H, type = "response")
+    
+
+    one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
+    control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
+    one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
 
 #     one_step_ahead_model <- lm(obs_y~., data = data.frame(cbind(obs_y, obs_H)))
 #     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
@@ -241,10 +239,25 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   }
   
   
+  one_step_ahead_res_ridge <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y_ridge
   one_step_ahead_res <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
-  mean(unlist(as.vector(one_step_ahead_res))^2)
-  var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))
-  print(1-mean(unlist(as.vector(one_step_ahead_res))^2)/var((unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))))
+  print(paste("Sample Variance",  var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))))
+  
+  print(paste("ridge prediction error:",  mean(unlist(as.vector(one_step_ahead_res_ridge))^2) ))
+  print(
+    paste(
+      "ridge",     1-mean(unlist(as.vector(one_step_ahead_res_ridge))^2)/var((unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))]))))
+    )
+  )  
+  
+  
+  print(paste("non-ridge prediction error:",  mean(unlist(as.vector(one_step_ahead_res))^2) )) 
+
+  print(
+    paste(
+      "non-ridge",     1-mean(unlist(as.vector(one_step_ahead_res))^2)/var((unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))]))))
+    )
+)
   # Write csv file
   # write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
   # write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)

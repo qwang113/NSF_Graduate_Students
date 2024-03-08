@@ -212,7 +212,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       curr_H <- rbind(curr_H, new_H)
     }
     
-    sp_cnn <- matrix(rep( t(basis_use_2_2d), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
+    sp_cnn <- matrix(rep( t(convoluted_res1), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
     curr_H <- cbind(curr_H, sp_cnn)
     colnames(curr_H) <- paste("node", 1:ncol(curr_H))
     obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
@@ -224,14 +224,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     # Ridge regression
     ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = "poisson", trace.it = 1, nfolds = 5)
     ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, 
-                          trace.it = 1, lambda = ridge_model_cv$lambda.min, family = "poisson")
-    
-    one_step_ahead_pred_y_ridge[,year-2011] <- predict(ridge_model, pred_H, type = "response")
-    
-
-    one_step_ahead_model <- glm(obs_y~., family = poisson(link="log"), data = data.frame(cbind(obs_y, obs_H)),
-    control = glm.control(epsilon = 1e-8, maxit = 10000000, trace = TRUE))
-    one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H), type = "response")
+                          trace.it = 1, lambda = c(0,ridge_model_cv$lambda.min), family = "poisson", thresh=1e-8)
+    one_step_ahead_pred_y_ridge[,year-2011] <- predict(ridge_model, pred_H, type = "response")[,1]
+    one_step_ahead_pred_y[,year-2011] <- predict(ridge_model, pred_H, type = "response")[,2]
 
 #     one_step_ahead_model <- lm(obs_y~., data = data.frame(cbind(obs_y, obs_H)))
 #     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
@@ -242,36 +237,15 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   one_step_ahead_res_ridge <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y_ridge
   one_step_ahead_res <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
   print(paste("Sample Variance",  var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))))
-  
   print(paste("ridge prediction error:",  mean(unlist(as.vector(one_step_ahead_res_ridge))^2) ))
-  print(
-    paste(
-      "ridge",     1-mean(unlist(as.vector(one_step_ahead_res_ridge))^2)/var((unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))]))))
-    )
-  )  
-  
-  
-  print(paste("non-ridge prediction error:",  mean(unlist(as.vector(one_step_ahead_res))^2) )) 
+  print(paste("non-ridge prediction error:",  mean(unlist(as.vector(one_step_ahead_res))^2) ))
 
-  print(
-    paste(
-      "non-ridge",     1-mean(unlist(as.vector(one_step_ahead_res))^2)/var((unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))]))))
-    )
-)
+  
   # Write csv file
   # write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
   # write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)
   
   
-  # if(out.rm == 0){
-    # write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = ""), row.names = FALSE)
-    # write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_",nh, ".csv", sep = ""), row.names = FALSE)
-  # }else{
-  #   write.csv( as.data.frame(one_step_ahead_pred_y), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_outrm_",nh, ".csv", sep = ""), row.names = FALSE)
-  #   write.csv( as.data.frame(one_step_ahead_res), paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_res_outrm_",nh, ".csv", sep = ""), row.names = FALSE)
-  # }
-  
-
 
 # Prediction file: paste("D:/77/UCSC/study/Research/temp/NSF_dat/ESN_pred_",nh, ".csv", sep = "")
 #Note: Total oo var is 9199.715, 
@@ -280,5 +254,8 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 
 # sp basis outside of ESN, no CNN
 # sp CNN outside of ESN
-# Find a way to run it more efficiently
+# Find a way to run it more efficiently # Finished.
 # Adding more details about the ESN 0
+  
+#Only 2nd basis ridge: 650.438
+  

@@ -163,7 +163,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # conv_covar <- apply(conv_covar, 2, min_max_scale)
   # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
   # conv_covar <- basis_3
-  nh <- 200 # Number of hidden units in RNN
+  nh <- 300 # Number of hidden units in RNN
   
   dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
   dummy_state <- model.matrix(~nsf_wide_car$state - 1)

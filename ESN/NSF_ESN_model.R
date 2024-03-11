@@ -163,7 +163,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   # conv_covar <- apply(conv_covar, 2, min_max_scale)
   # write.csv(conv_covar, "D:/77/UCSC/study/Research/temp/NSF_dat/conv_basis.csv")
   # conv_covar <- basis_3
-  nh <- 300 # Number of hidden units in RNN
+  nh <- 200 # Number of hidden units in RNN
   
   dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
   dummy_state <- model.matrix(~nsf_wide_car$state - 1)
@@ -182,6 +182,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
     U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
     ar_col <- matrix(runif(nh,-a,a), nrow = 1)
+    ar_col_lag2 <- matrix(runif(nh,-a,a), nrow = 1)
     lambda_scale <- max(abs(eigen(W)$values))
     ux_sp <- conv_covar%*%U_sp
     # ux_dummy <- dummy_matrix%*%U_dummy
@@ -197,16 +198,31 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
     print("Calculating Recurrent H Matrix. . .")
     for (i in 2:(year-1972+1)) {
+      
       setTxtProgressBar(pb,i)
-      # curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
-      new_H <- apply( 
-        nu/lambda_scale*
-          curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
-        # + ux_sp
+      # if(i == 2){
+        new_H <- apply( 
+          nu/lambda_scale*
+            curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
+          # + ux_sp
           # + ux_dummy
-         + log(nsf_wide_car[,i+8]+1)%*%ar_col
-        # + curr_shared_pc %*% U_pc
-        , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
+          + log(nsf_wide_car[,i+8]+1)%*%ar_col
+          # + curr_shared_pc %*% U_pc
+          , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
+      # }else{
+      #   
+      #   new_H <- apply( 
+      #     nu/lambda_scale*
+      #       curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
+      #     # + ux_sp
+      #     # + ux_dummy
+      #     + log(nsf_wide_car[,i+8]+1)%*%ar_col + log(nsf_wide_car[,i+8-1]+1)%*%ar_col_lag2*0.1
+      #     # + curr_shared_pc %*% U_pc
+      #     , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
+      #     
+      # }
+      # curr_shared_pc <- matrix(rep(pc_prev[i-1,], nrow(nsf_wide_car)), nrow = nrow(nsf_wide_car), byrow = T)
+      
       
       Y <- c(Y, nsf_wide_car[,i+9])
       curr_H <- rbind(curr_H, new_H)
@@ -265,7 +281,7 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 #Only 3rd basis ridge/non-ridge: 659.976 / 637.840
 #All basis ridge/non-ridge: 665.961 / 636.969
   
-#Only CNN for 1st ridge/non-ridge: 647.522 / 627.136
+#Only CNN for 1st ridge/non-ridge: 647.522 / 627.136 ------------------------- best
 #Only CNN for 2nd ridge/non-ridge: 657.265 / 639.842
 #Only CNN for 3rd ridge/non-ridge: 658.838 / 642.679
 #All CNN ridge/non-ridge: 650.057 / 632.487

@@ -212,8 +212,8 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       curr_H <- rbind(curr_H, new_H)
     }
     
-    sp_cnn <- matrix(rep( t(convoluted_res3), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
-    curr_H <- cbind(curr_H, sp_cnn)
+    # sp_cnn <- matrix(rep( t(cbind(basis_use_1_2d, basis_use_2_2d, basis_use_3_2d)), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
+    # curr_H <- cbind(curr_H, sp_cnn)
     colnames(curr_H) <- paste("node", 1:ncol(curr_H))
     obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
     pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
@@ -256,14 +256,16 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 # sp CNN outside of ESN
 # Find a way to run it more efficiently # Finished.
 # Adding more details about the ESN 0
-  
+
+#No basis or spatial part:   652.821 / 634.047
+
   
 #Only 1st basis ridge/non-ridge: 663.829 / 643.675
 #Only 2nd basis ridge/non-ridge: 646.458 / 630.407
 #Only 3rd basis ridge/non-ridge: 659.976 / 637.840
+#All basis ridge/non-ridge: 665.961 / 636.969
   
 #Only CNN for 1st ridge/non-ridge: 647.522 / 627.136
 #Only CNN for 2nd ridge/non-ridge: 657.265 / 639.842
-#Only CNN for 3rd ridge/non-ridge:
-  
-#All CNN ridge/non-ridge:
+#Only CNN for 3rd ridge/non-ridge: 658.838 / 642.679
+#All CNN ridge/non-ridge: 650.057 / 632.487

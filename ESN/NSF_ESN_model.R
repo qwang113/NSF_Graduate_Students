@@ -172,6 +172,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   
   a <- 0.1
   one_step_ahead_pred_y_ridge <- one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide_car), ncol = length(2012:2021))
+  possible_lam <- seq(from = 0, to = 100, by = 1)
+  lambda_all_pred  <- array(NA, dim  = c(length(lambda_all_pred), nrow(nsf_wide_car), length(2012:2021)))
+  # lambda_all_res <- array(NA, dim  = c(length(lambda_all_pred), nrow(nsf_wide_car), length(2012:2021)))
   leak <- 1
   for (year in 2012:2021) {
     #Initialize
@@ -223,16 +226,24 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     
     # Ridge regression
     ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = "poisson", trace.it = 1, nfolds = 5)
-    ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, 
-                          trace.it = 1, lambda = c(0,ridge_model_cv$lambda.min), family = "poisson", thresh=1e-8)
+    ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0,
+    trace.it = 1, lambda = c(0,ridge_model_cv$lambda.min), family = "poisson", thresh=1e-8)
     one_step_ahead_pred_y_ridge[,year-2011] <- predict(ridge_model, pred_H, type = "response", s = ridge_model_cv$lambda.min)
     one_step_ahead_pred_y[,year-2011] <- predict(ridge_model, pred_H, type = "response", s = 0)
-
-#     one_step_ahead_model <- lm(obs_y~., data = data.frame(cbind(obs_y, obs_H)))
-#     one_step_ahead_pred_y[,year-2011] <- predict(one_step_ahead_model, newdata = data.frame(pred_H))
-#     
+    
+    # I used glm to verify the previous code when lambda = 0, it's not wrong.
+    # glm_model <- glm(obs_y ~ ., family = poisson(link = "log"), data = as.data.frame(cbind(obs_y, obs_H)))
+    # glm_pred <- predict(glm_model, type = "response", newdata = as.data.frame(pred_H))
+    # All lambda model
+    # all_lambda_model <- glmnet(x = obs_H, y = obs_y, alpha = 0, family = "poisson", lambda = possible_lam, trace.it = 1)
+    # lambda_all_pred[,,year-2011] <- t(predict(all_lambda_model, pred_H, type = "response"))
   }
-  
+
+  # for (i in 1:length(possible_lam)) {
+  #  lambda_all_res[i,,] <-  as.matrix(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - lambda_all_pred[i,,])
+  # }
+  # lambda_res_squared <- lambda_all_res^2
+  # apply(lambda_res_squared, 1, mean)
   
   one_step_ahead_res_ridge <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y_ridge
   one_step_ahead_res <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y

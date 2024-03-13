@@ -172,9 +172,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   
   a <- 0.1
   one_step_ahead_pred_y_ridge <- one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide_car), ncol = length(2012:2021))
-  possible_lam <- seq(from = 0, to = 100, by = 1)
-  lambda_all_pred  <- array(NA, dim  = c(length(lambda_all_pred), nrow(nsf_wide_car), length(2012:2021)))
-  # lambda_all_res <- array(NA, dim  = c(length(lambda_all_pred), nrow(nsf_wide_car), length(2012:2021)))
+  # possible_lam <- seq(from = 0, to = 100, by = 1)
+  # lambda_all_pred  <- array(NA, dim  = c(length(possible_lam), nrow(nsf_wide_car), length(2012:2021)))
+  # lambda_all_res <- array(NA, dim  = c(length(possible_lam), nrow(nsf_wide_car), length(2012:2021)))
   leak <- 1
   for (year in 2012:2021) {
     #Initialize

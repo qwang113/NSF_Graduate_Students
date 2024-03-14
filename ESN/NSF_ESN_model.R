@@ -108,20 +108,20 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
   st_model_res_1 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                   input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
+    layer_flatten() %>% layer_dense(units = 10, kernel_initializer = my_custom_initializer, activation = "tanh")
   
   
   st_model_res_2 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                   input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
+    layer_flatten() %>% layer_dense(units = 10, kernel_initializer = my_custom_initializer, activation = "tanh")
   
   
   
   st_model_res_3 <- keras_model_sequential() %>%
     layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                   input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-    layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
+    layer_flatten() %>% layer_dense(units = 10, kernel_initializer = my_custom_initializer, activation = "tanh")
   
   convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
   convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -231,8 +231,8 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
       curr_H <- rbind(curr_H, new_H)
     }
     
-    # sp_cnn <- matrix(rep( t(cbind(basis_use_1_2d, basis_use_2_2d, basis_use_3_2d)), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
-    # curr_H <- cbind(curr_H, sp_cnn)
+    sp_cnn <- matrix(rep( t(convoluted_res1), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
+    curr_H <- cbind(curr_H, sp_cnn)
     colnames(curr_H) <- paste("node", 1:ncol(curr_H))
     obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
     pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
@@ -241,10 +241,10 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
     
     # Ridge regression
-    ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = "poisson", trace.it = 1, nfolds = 5)
+    # ridge_model_cv <- cv.glmnet(x = obs_H, y = obs_y, alpha = 0, family = "poisson", trace.it = 1, nfolds = 5)
     ridge_model <- glmnet(x = obs_H, y = obs_y, alpha = 0,
-    trace.it = 1, lambda = c(0,ridge_model_cv$lambda.min), family = "poisson", thresh=1e-8)
-    one_step_ahead_pred_y_ridge[,year-2011] <- predict(ridge_model, pred_H, type = "response", s = ridge_model_cv$lambda.min)
+    trace.it = 1, lambda = 0, family = "poisson", thresh=1e-8)
+    # one_step_ahead_pred_y_ridge[,year-2011] <- predict(ridge_model, pred_H, type = "response", s = ridge_model_cv$lambda.min)
     one_step_ahead_pred_y[,year-2011] <- predict(ridge_model, pred_H, type = "response", s = 0)
     
     # I used glm to verify the previous code when lambda = 0, it's not wrong.
@@ -296,3 +296,9 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 #Only CNN for 2nd ridge/non-ridge: 657.265 / 639.842
 #Only CNN for 3rd ridge/non-ridge: 658.838 / 642.679
 #All CNN ridge/non-ridge: 650.057 / 632.487
+  
+  
+# Clean up the code.
+# Show the time series plot of the residuals of the model with/without spatial part.
+# Shrink the cnn output number.
+# Time schedule Mar.15 10am in CA

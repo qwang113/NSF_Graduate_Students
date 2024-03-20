@@ -98,19 +98,19 @@ num_filters <- 64
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>% layer_dense(units = 10, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>% layer_dense(units = 10, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>% layer_dense(units = 10, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 # Input basis functions and get the output from CNN with random weights
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)

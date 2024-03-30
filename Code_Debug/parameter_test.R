@@ -12,19 +12,30 @@
   library(MASS)
   use_condaenv("tf_gpu")
 }
-nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_car.csv")
-# outlier_20172020 <-c(861,823,1555, 526,126,1677,910,1451,812,325,311,215,1755,227,1703,1044,1370,945,1350,1433)
-# nsf_wide_car <- nsf_wide_car[-outlier_20172020,]
+nsf_wide_car <- read.csv(here::here("nsf_final_wide_car.csv"))
+
 
 coords <- data.frame("long" = nsf_wide_car$long, "lat" = nsf_wide_car$lat)
 long <- coords$long
 lat <- coords$lat
+# carnegie_1994 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1994.csv", header = TRUE)
+# carnegie_1995 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1995.csv", header = TRUE)
+
+ggplot() +
+  geom_point(aes(x = jitter(long), y = jitter(lat), col = nsf_wide_car$X1972)) +
+  scale_color_viridis_c(limits = c(0,200)) 
 
 coordinates(coords) <- ~ long + lat
 
 gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "Gaussian", regular = 1)
 gridbasis2 <- auto_basis(mainfold = plane(), data = coords, nres = 2, type = "Gaussian", regular = 1)
 gridbasis3 <- auto_basis(mainfold = plane(), data = coords, nres = 3, type = "Gaussian", regular = 1)
+
+show_basis(gridbasis3) + 
+  coord_fixed() +
+  xlab("Longitude") +
+  ylab("Latitude")
+
 
 
 basis_1 <- matrix(NA, nrow = nrow(coords@coords), ncol = length(gridbasis1@fn))
@@ -92,25 +103,25 @@ my_custom_initializer <- function(shape, dtype = NULL) {
 
 
 
-num_filters <- 64
+num_filters <- 100
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -126,25 +137,31 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
+
 nh <- 200 # Number of hidden units in RNN
+
+dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)[,-1]
+dummy_state <- model.matrix(~nsf_wide_car$state - 1)[,-1]
+dummy_gss <- model.matrix(~ substr(nsf_wide_car$ID, 7, 9)  - 1)[,-1]
+dummy_matrix <- cbind(dummy_car, dummy_gss, dummy_state)
+
 a <- 0.1
 one_step_ahead_pred_y_ridge <- one_step_ahead_pred_y <- matrix(NA, nrow = nrow(nsf_wide_car), ncol = length(2012:2021))
-possible_lam <- seq(from = 0, to = 0.1, length.out = 1000)
-best_lam <- rep(NA, length(2012:2021))
 leak <- 1
-for (year in 2012:2021) {
+year = 2012
   #Initialize
   nx_sp <- ncol(conv_covar)
+  nx_dummy <- ncol(dummy_matrix)
   nu <- 1
   W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
   U_sp <- matrix(runif(nh*nx_sp, -a,a), nrow = nx_sp, ncol = nh)
+  U_dummy <- matrix(runif(nh*nx_dummy, -a,a), nrow = nx_dummy, ncol = nh)
   ar_col <- matrix(runif(nh,-a,a), nrow = 1)
   ar_col_lag2 <- matrix(runif(nh,-a,a), nrow = 1)
   lambda_scale <- max(abs(eigen(W)$values))
   ux_sp <- conv_covar%*%U_sp
+  # ux_dummy <- dummy_matrix%*%U_dummy
   curr_H <- apply(ux_sp, c(1,2), tanh)
-
-  
   Y <- nsf_wide_car[,10]
   pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
   print("Calculating Recurrent H Matrix. . .")
@@ -154,12 +171,17 @@ for (year in 2012:2021) {
     new_H <- apply( 
       nu/lambda_scale*
         curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
-      + log(nsf_wide_car[,i+8]+1)%*%ar_col      , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
+      # + ux_sp
+      # + ux_dummy
+      + log(nsf_wide_car[,i+8]+1)%*%ar_col
+      , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
 
     Y <- c(Y, nsf_wide_car[,i+9])
     curr_H <- rbind(curr_H, new_H)
   }
+  
   sp_cnn <- matrix(rep( t(convoluted_res1), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
+  dum <- matrix(rep( t(dummy_car), year-1972+1), nrow = nrow(curr_H), byrow = TRUE)
   curr_H <- cbind(curr_H, sp_cnn)
   colnames(curr_H) <- paste("node", 1:ncol(curr_H))
   obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
@@ -168,15 +190,8 @@ for (year in 2012:2021) {
   years_before <- year - 1972
   obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
   
+  # I used glm to verify the previous code when lambda = 0, it's not wrong.
   glm_model <- glm(obs_y ~ ., family = poisson(link = "log"), data = as.data.frame(cbind(obs_y, obs_H)))
   glm_pred <- predict(glm_model, type = "response", newdata = as.data.frame(pred_H))
-  one_step_ahead_pred_y[,year-2011] <- glm_pred
-}
 
-
-# one_step_ahead_res_ridge <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y_ridge
-one_step_ahead_res <- nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))] - one_step_ahead_pred_y
-print(paste("Sample Variance",  var(unlist(as.vector(nsf_wide_car[,c((2012-1972+10):(ncol(nsf_wide_car)-1))])))))
-# print(paste("ridge prediction error:",  mean(unlist(as.vector(one_step_ahead_res_ridge))^2) ))
-print(paste("non-ridge prediction error:",  mean(unlist(as.vector(one_step_ahead_res))^2) ))
-
+  mean((glm_pred - nsf_wide_car$X2012)^2)

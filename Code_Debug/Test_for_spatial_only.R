@@ -98,23 +98,19 @@ num_filters <- 64
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() 
-# %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten()%>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() 
-
-# %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() 
-# %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 # Input basis functions and get the output from CNN with random weights
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
@@ -147,32 +143,31 @@ ar_col <- matrix(runif(nh,-a,a), nrow = 1)
 ar_col_lag2 <- matrix(runif(nh,-a,a), nrow = 1)
 lambda_scale <- max(abs(eigen(W)$values))
 ux_sp <- conv_covar%*%U_sp
-# ux_dummy <- dummy_matrix%*%U_dummy
 
-res_cv <- matrix(NA, length(sp_cv),length(tm_cv))
-for (spcv in 1:length(sp_cv)) {
-  for (tmcv in 1:length(tm_cv)) {
+# res_cv <- matrix(NA, length(sp_cv),length(tm_cv))
+# for (spcv in 1:length(sp_cv)) {
+#   for (tmcv in 1:length(tm_cv)) {
     
-  
-  
-  print(paste("Now doing sptm cv for",spcv,tmcv))
-  
-
-  curr_H <- apply(ux_sp, c(1,2), tanh)
-  Y <- nsf_wide_car[,10]
-  pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
-  print("Calculating Recurrent H Matrix. . .")
-  for (i in 2:(year-1972+1)) {
     
-    setTxtProgressBar(pb,i)
-    new_H <- apply( 
-      nu/lambda_scale*
-        curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
-      + ux_sp * sp_cv[spcv]
-      + log(nsf_wide_car[,i+8]+1)%*%ar_col*tm_cv[tmcv]
-      , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
     
-    Y <- c(Y, nsf_wide_car[,i+9])
+    # print(paste("Now doing sptm cv for",spcv,tmcv))
+    
+    
+    curr_H <- apply(ux_sp, c(1,2), tanh)
+    Y <- nsf_wide_car[,10]
+    pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
+    print("Calculating Recurrent H Matrix. . .")
+    for (i in 2:(year-1972+1)) {
+      
+      setTxtProgressBar(pb,i)
+      new_H <- apply( 
+        nu/lambda_scale*
+          curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
+        # + ux_sp * sp_cv[spcv]
+        + log(nsf_wide_car[,i+8]+1)%*%ar_col*2
+        , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
+      
+      Y <- c(Y, nsf_wide_car[,i+9])
     curr_H <- rbind(curr_H, new_H)
   }
 
@@ -190,12 +185,11 @@ for (spcv in 1:length(sp_cv)) {
   # I used glm to verify the previous code when lambda = 0, it's not wrong.
   glm_model <- glm(obs_y ~ ., family = poisson(link = "log"), data = as.data.frame(cbind(obs_y, obs_H)))
   glm_pred <- predict(glm_model, type = "response", newdata = as.data.frame(pred_H))
-  
-  res_cv[spcv,tmcv] <- mean((glm_pred - nsf_wide_car$X2012)^2)
-}
-
-}
+  mean((glm_pred - nsf_wide_car$X2012)^2)
+  # res_cv[spcv,tmcv] <- mean((glm_pred - nsf_wide_car$X2012)^2)
+# }
+# 
+# }
 
 #no sp:336.5021
 #with sp:527.9727
-

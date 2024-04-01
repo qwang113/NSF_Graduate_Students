@@ -99,58 +99,29 @@ leak = 1
 nh <- 200 
 # for (year in 2012:2021) {
 year = 2012
-  # Need to repeat the basis array!
-  num_rep <- year-1972
-  
-  basis_tr_1 <- array(NA, dim = c(num_rep*nrow(nsf_wide_car), shape_row_1, shape_col_1,1) )
-  basis_tr_2 <- array(NA, dim = c(num_rep*nrow(nsf_wide_car), shape_row_2, shape_col_2,1) )
-  basis_tr_3 <- array(NA, dim = c(num_rep*nrow(nsf_wide_car), shape_row_3, shape_col_3,1) )
-  for (repidx in 1:num_rep) {
-    basis_tr_1[ ((repidx-1)*nrow(nsf_wide_car)+1) : (repidx*nrow(nsf_wide_car)) ,,,] <- basis_arr_1
-    basis_tr_2[ ((repidx-1)*nrow(nsf_wide_car)+1) : (repidx*nrow(nsf_wide_car)),,,] <- basis_arr_2
-    basis_tr_3[ ((repidx-1)*nrow(nsf_wide_car)+1) : (repidx*nrow(nsf_wide_car)),,,] <- basis_arr_3
-  }
-  
-  # Range of the uniform distribution, from which we generate ESN recurrent weights
-  a <- 0.1
-  
-  #Initialize
-  nu <- 1
-  W <- matrix(runif(nh^2, -a,a), nh, nh) # Recurrent weight matrix, handle the output from last hidden unit
-  ar_col <- matrix(runif(nh,-a,a), nrow = 1)
-  lambda_scale <- max(abs(eigen(W)$values))
-  curr_H <- apply(matrix(0,nrow = nrow(nsf_wide_car), ncol = nh), c(1,2), tanh)
-  
-  
-  Y <- nsf_wide_car[,10]
-  pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
-  print("Calculating Recurrent H Matrix. . .")
-  for (i in 2:(year-1972+1)) {
-    
-    setTxtProgressBar(pb,i)
-    
-    new_H <- apply( 
-      nu/lambda_scale*
-        curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]%*%W
-      # + ux_sp
-      # + ux_dummy
-      + log(nsf_wide_car[,i+8]+1)%*%ar_col
-      , c(1,2), tanh)*leak + curr_H[(nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H),]*(1-leak)
-    
-    Y <- c(Y, nsf_wide_car[,i+9])
-    curr_H <- rbind(curr_H, new_H)
-  }
-  
-  # Decide whether we want spatial basis function or output from random weight CNN.
-  # Change the value in t() function to modify the model
-  
-  colnames(curr_H) <- paste("node", 1:ncol(curr_H))
-  obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
-  pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
-  years_before <- year - 1972
-  obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
-  
-  
+# Need to repeat the basis array!
+num_rep <- year-1972
+
+basis_tr_1 <- array(NA, dim = c(num_rep*nrow(nsf_wide_car), shape_row_1, shape_col_1,1) )
+basis_tr_2 <- array(NA, dim = c(num_rep*nrow(nsf_wide_car), shape_row_2, shape_col_2,1) )
+basis_tr_3 <- array(NA, dim = c(num_rep*nrow(nsf_wide_car), shape_row_3, shape_col_3,1) )
+for (repidx in 1:num_rep) {
+  basis_tr_1[ ((repidx-1)*nrow(nsf_wide_car)+1) : (repidx*nrow(nsf_wide_car)) ,,,] <- basis_arr_1
+  basis_tr_2[ ((repidx-1)*nrow(nsf_wide_car)+1) : (repidx*nrow(nsf_wide_car)),,,] <- basis_arr_2
+  basis_tr_3[ ((repidx-1)*nrow(nsf_wide_car)+1) : (repidx*nrow(nsf_wide_car)),,,] <- basis_arr_3
+}
+
+years_before <- year - 1972
+Y <- nsf_wide_car[,10]
+pb <- txtProgressBar(min = 1, max = length(2:(year-1972+1)), style = 3)
+print("Calculating Recurrent H Matrix. . .")
+for (i in 2:(year-1972+1)) {
+  Y <- c(Y, nsf_wide_car[,i+9])
+
+}
+
+obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
+
 
 input_basis_1 <- layer_input(shape = c(shape_row_1, shape_col_1, 1))
 input_basis_2 <- layer_input(shape = c(shape_row_2, shape_col_2, 1))
@@ -188,51 +159,45 @@ resolution_3_conv <- input_basis_3 %>%
   layer_dense(units = 100, activation = 'tanh')
 
 
-  
-  esn_output <- input_esn %>%
-    layer_dense(units = 100, activation = 'tanh') %>% 
-    layer_batch_normalization() %>%
-    layer_dense(units = 100, activation = 'tanh') %>%
-    layer_batch_normalization() %>%
-    layer_dense(units = 100, activation = 'tanh') 
-  
-  all_model <- layer_concatenate(list(resolution_1_conv, resolution_2_conv, resolution_3_conv, esn_output))
-  output_layer <- all_model %>%  layer_dense(units = 1, activation = 'exponential')
-  
-  
-  model_sp_esn <- keras_model(inputs = list(input_basis_1, input_basis_2, input_basis_3, input_esn), outputs = output_layer)
+cnn_model <- layer_concatenate(list(resolution_1_conv, resolution_2_conv, resolution_3_conv))
 
-  model_sp_esn <- 
-    model_sp_esn %>% compile(
-      optimizer = "adam",
-      loss = "poisson"
-    )
+output_layer <- cnn_model %>%  layer_dense(units = 1, activation = 'exponential')
 
-  
-  model_checkpoint <- callback_model_checkpoint(
-    filepath = "D:/77/research/temp/nsf_best_weights_ck.h5",
-    save_best_only = TRUE,
-    monitor = "val_loss",
-    mode = "min",
-    verbose = 0
+
+model_sp_esn <- keras_model(inputs = list(input_basis_1, input_basis_2, input_basis_3), outputs = output_layer)
+
+model_sp_esn <- 
+  model_sp_esn %>% compile(
+    optimizer = "adam",
+    loss = "poisson"
   )
- 
-  
-  mod_train_sp_esn<- model_sp_esn %>% fit(
-    x = list(basis_tr_1, basis_tr_2, basis_tr_3, obs_H),
-    y = obs_y,
-    epochs=50,
-    batch_size=1000,
-    validation_data=list(list(basis_arr_1, basis_arr_2, basis_arr_3, pred_H), as.numeric(nsf_wide_car$X2012) ),
-    callbacks = model_checkpoint, shuffle = TRUE
-  )
-  
-  
-  model_sp_esn %>% load_model_weights_hdf5("D:/77/research/temp/nsf_best_weights_ck.h5")
-  
-  
-  pred_spesn <- predict(model_sp_esn, list(basis_arr_1, basis_arr_2, basis_arr_3, pred_H))
 
-  print(mean((nsf_wide_car$X2012 - pred_spesn)^2))
+
+model_checkpoint <- callback_model_checkpoint(
+  filepath = "D:/77/research/temp/nsf_best_weights_ck.h5",
+  save_best_only = TRUE,
+  monitor = "val_loss",
+  mode = "min",
+  verbose = 0
+)
+
+
+mod_train_sp_esn<- model_sp_esn %>% fit(
+  x = list(basis_tr_1, basis_tr_2, basis_tr_3),
+  y = obs_y,
+  epochs=50,
+  batch_size=1000,
+  validation_data=list(list(basis_arr_1, basis_arr_2, basis_arr_3), as.numeric(nsf_wide_car$X2012) ),
+  callbacks = model_checkpoint, shuffle = TRUE
+)
+
+
+model_sp_esn %>% load_model_weights_hdf5("D:/77/research/temp/nsf_best_weights_ck.h5")
+
+
+pred_spesn <- predict(model_sp_esn, list(basis_arr_1, basis_arr_2, basis_arr_3))
+
+print(mean((nsf_wide_car$X2012 - pred_spesn)^2))
+var(nsf_wide_car$X2012)
 # }
 

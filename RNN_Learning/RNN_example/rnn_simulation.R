@@ -45,8 +45,6 @@ tr_dat <- sim_dat[1:tr_dat_len,]
 te_dat <- sim_dat[(tr_dat_len+1):nrow(sim_dat),]
 
 
-
-
 x_tr <-  array_reshape(tr_dat[,2:ncol(tr_dat)], c(1,tr_dat_len,2)) 
 y_tr <-  array_reshape(tr_dat[,1], c(1,tr_dat_len)) 
 x_te <- array_reshape(te_dat[,2:ncol(te_dat)], c(1,te_dat_len,2)) 

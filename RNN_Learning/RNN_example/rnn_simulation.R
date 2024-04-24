@@ -27,15 +27,18 @@ for (i in 2:n_obs) {
   Y[,i] <- Y[,i-1]*phi1 + covariate1[,i]*beta1 + covariate2[,i]*beta2
 }
 
-X <- abind(covariate1, covariate2,Y_lag <- cbind(0,Y[,-ncol(Y)]), along = 3)
+X <- abind(covariate1, covariate2, along = 3)
 
-
+x_tr <- X[,1:80,]
+y_tr <- Y[,1:80]
+x_te <- X[,-c(1:80),]
+y_te <- Y[,-c(1:80)]
 # Set up the RNN model
 model <- keras_model_sequential() %>%
-  layer_simple_rnn(units = 10, input_shape = dim(X)[2:3], activation = "tanh") %>%
+  layer_simple_rnn(units = 100, input_shape = dim(x_tr)[2:3], activation = "tanh", return_sequences = TRUE) %>%
   layer_dense(units = 100) %>%
   layer_dense(units = 100) %>%
-  layer_dense(units = 100)
+  layer_dense(units = 1)
 
 # Compile the model
 model %>% compile(
@@ -47,18 +50,39 @@ model %>% compile(
 
 # Train the model
 history <- model %>% fit(
-  x = X,
-  y = Y,
+  x = x_tr,
+  y = y_tr,
   epochs = 100,
   batch_size = 32
 )
 
-# Make predictions
-predictions <- model %>% predict(X)
+pred_model <- keras_model_sequential() %>%
+  layer_simple_rnn(units = 100, batch_input_shape = c(n_samples,NA,dim(x_tr)[3]), activation = "tanh", stateful = TRUE) %>%
+  layer_dense(units = 100) %>%
+  layer_dense(units = 100) %>%
+  layer_dense(units = 1)
 
-# Print predictions
-print(predictions)
+pred_model %>% set_weights(model %>% get_weights())
+pred_model %>% reset_states()
+predict(pred_model, x_tr) # Give initial states
+# Predict for the first sequence:
+seq_pred <- matrix(NA, ncol = ncol(y_te), nrow = n_samples)
+for (i in 1:ncol(y_te)) {
+  curr_step_cov <- array_reshape(X[,ncol(y_tr)+i,],dim = c(n_samples,1,2)) 
+  seq_pred[,i] <- predict(pred_model, curr_step_cov)
+}
 
-plot(Y[1,], type = 'l')
-lines(predictions[1,], type = 'l', col = "red")
+plots <- vector("list")
+i = 1
+ggplot() +
+geom_path(aes( x = 1:n_obs, y = Y[i,])) + 
+geom_point(aes( x = 1:n_obs, y = Y[i,])) + 
+geom_vline(xintercept = 81, color = "red", linetype = "dashed") + 
+geom_path(aes( x = 81:100, y = seq_pred[i,]), color = "blue")
+
+
+
+plots
+  
+
 

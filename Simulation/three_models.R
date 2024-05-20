@@ -3,19 +3,19 @@ rm(list = ls())
 sim_wide <- read.csv("D:/77/UCSC/study/Research/temp/sim_wide.csv")
 sim_long <- read.csv("D:/77/UCSC/study/Research/temp/sim.csv")
 wide_y <- sim_wide[,-c(1,2)]
-# osh_pred_pois <- matrix(NA, nrow = nrow(wide_y), ncol = length(11:15))
+osh_pred_pois <- matrix(NA, nrow = nrow(wide_y), ncol = length(11:15))
 # 
-# for (year in 11:15) {
-#   for (school in 1:nrow(wide_y)) {
-#     print(paste("now doing year", year, "school", school))
-#     prev_obs <- unlist(wide_y[school,2:(year-1)]) 
-#     lag_obs <- unlist(wide_y[school, 1:(year-2)])
-#     model <- glm(prev_obs ~ lag_obs, family = poisson(link = "log"))
-#     osh_pred_pois[school, year-10] <- predict(model, newdata = data.frame("lag_obs" = unlist(wide_y[school, year-1])),
-#                                            type = "response")
-#   }
-# }
-# mean((osh_pred_pois - as.matrix(wide_y[,11:15]))^2)
+for (year in 11:15) {
+  for (school in 1:nrow(wide_y)) {
+    print(paste("now doing year", year, "school", school))
+    prev_obs <- unlist(wide_y[school,2:(year-1)])
+    lag_obs <- unlist(wide_y[school, 1:(year-2)])
+    model <- glm(prev_obs ~ log(lag_obs+1), family = poisson(link = "log"))
+    osh_pred_pois[school, year-10] <- predict(model, newdata = data.frame("lag_obs" = unlist(log(wide_y[school, year-1] +1) )),
+                                           type = "response")
+  }
+}
+mean((osh_pred_pois - as.matrix(wide_y[,11:15]))^2)
 
 
 
@@ -42,9 +42,9 @@ lat <- coords$lat
 
 coordinates(coords) <- ~ long + lat
 
-gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "Gaussian", regular = 1)
-gridbasis2 <- auto_basis(mainfold = plane(), data = coords, nres = 2, type = "Gaussian", regular = 1)
-gridbasis3 <- auto_basis(mainfold = plane(), data = coords, nres = 3, type = "Gaussian", regular = 1)
+gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "bisquare", regular = 1)
+gridbasis2 <- auto_basis(mainfold = plane(), data = coords, nres = 2, type = "bisquare", regular = 1)
+gridbasis3 <- auto_basis(mainfold = plane(), data = coords, nres = 3, type = "bisquare", regular = 1)
 
 show_basis(gridbasis3) +
   coord_fixed() +
@@ -117,6 +117,32 @@ my_custom_initializer <- function(shape, dtype = NULL) {
 
 
 
+# library(ggplot2)
+# library(reshape2)
+
+# # Define the matrix
+# matrix_data <- basis_arr_3[1000,,,1]
+# 
+# # Convert the matrix to a data frame
+# df <- melt(matrix_data)
+# 
+# # Rename the columns for better understanding
+# colnames(df) <- c("Row", "Column", "Value")
+# 
+# # Plot the heatmap using ggplot2
+# ggplot(df, aes(x = Column, y = Row, fill = Value)) + 
+#   geom_tile() +
+#   scale_fill_gradient(low = "white", high = "red") +
+#   theme_minimal() +
+#   labs(x = "Column", y = "Row", fill = "Value", title = "Heatmap of Matrix") +
+#   theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+
+
+
 
 num_filters <- 64
 
@@ -159,53 +185,60 @@ min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
 pi_0 <- 0
 num_ensemble <- 1
-a_par <- c(.1)
-nu_par <- c(0.5)
+a <- 1
+nu_par <- seq(from = 0, to = 1, by = 0.1)
 res <- array(NA, dim = c(num_ensemble, length(a_par), length(nu_par)))
 sigmoid <- function(x){return(exp(x)/(1+exp(x)))}
 osh_pred_spesn <- matrix(NA, nrow = nrow(wide_y), ncol= length(11:15))
-
+sp_par <- seq(from = 0, to = 1, by = 0.1)
+all_mse <- matrix(NA, nrow = length(sp_par), ncol = length(nu_par))
 for (ensem_idx in 1:num_ensemble) {
-  for (a_par_idx in 1:length(a_par) ) {
-    a <- a_par[a_par_idx]
-    for (nu_par_idx in 1:length(nu_par)) {
+  for (i in 1:length(sp_par)) {
+    for (j in 1:length(nu_par)) {
       for(curr_year in 11: 15){
-      # Generate W weight matrices
-      W <- matrix(runif(nh^2, -a, a), nrow = nh, ncol = nh)*rbinom(nh^2, 1, 1-pi_0)
-      lambda_scale <- max(abs(eigen(W)$values))
-      U_ar <- matrix(runif(nh, -a, a), ncol = 1) * rbinom(nh, 1, 1-pi_0)
-      U_sp <- matrix(runif(nh*ncol(conv_covar), -a, a), ncol = nh) *  rbinom(nh*ncol(conv_covar), 1, 1-pi_0)
-      Ux_sp <- conv_covar %*% U_sp
-      # Ux_sp <- matrix(0, nrow = nrow(wide_y), ncol = nh)
-      curr_H <- sigmoid(Ux_sp)
-      Y <- wide_y[,1]
-      for (year in 2:(curr_year-1+1)) {
-        new_H <- sigmoid(
-          nu_par[nu_par_idx]/lambda_scale * curr_H[((year-2)*nrow(wide_y)+1):nrow(curr_H),] %*% W 
-          + (  matrix( log(wide_y[,year-1]+1)) ) %*% t(U_ar)
-          + Ux_sp
-        )
-        curr_H <- rbind(curr_H, new_H)
-        Y <- c(Y, wide_y[,year])
-      }
-      colnames(curr_H) <- paste("node", 1:ncol(curr_H))
-      obs_H <- curr_H[-c((nrow(curr_H)-nrow(wide_y)+1):nrow(curr_H)),]
-      pred_H <- curr_H[c((nrow(curr_H)-nrow(wide_y)+1):nrow(curr_H)),]
-      print(paste("Now predicting year",year))
-      years_before <- curr_year - 1
-      obs_y <- Y[1:(years_before*nrow(wide_y))]
-      
-      # I used glm to verify the previous code when lambda = 0, it's not wrong.
-      glm_model <- glm(obs_y ~ ., family = poisson(link = "log"), data = as.data.frame(cbind(obs_y, obs_H)),
-                       control = glm.control(epsilon = 1e-8, maxit = 25, trace = TRUE))
-      glm_pred <- predict(glm_model, type = "response", newdata = as.data.frame(pred_H))
-      osh_pred_spesn[,curr_year-10] <- glm_pred
-      }
+        # Generate W weight matrices
+        W <- matrix(runif(nh^2, -a, a), nrow = nh, ncol = nh)*rbinom(nh^2, 1, 1-pi_0)
+        lambda_scale <- max(abs(eigen(W)$values))
+        U_ar <- matrix(runif(nh, -a, a), ncol = 1) * rbinom(nh, 1, 1-pi_0)
+        U_sp <- matrix(runif(nh*ncol(conv_covar), -a, a), ncol = nh) *  rbinom(nh*ncol(conv_covar), 1, 1-pi_0)
+        Ux_sp <- conv_covar %*% U_sp
+        # Ux_sp <- matrix(0, nrow = nrow(wide_y), ncol = nh)
+        curr_H <- sigmoid(Ux_sp)
+        Y <- wide_y[,1]
+        for (year in 2:(curr_year-1+1)) {
+          new_H <- sigmoid(
+            nu_par[j]/lambda_scale * curr_H[((year-2)*nrow(wide_y)+1):nrow(curr_H),] %*% W 
+            + (  matrix( log(wide_y[,year-1]+1)) ) %*% t(U_ar)
+            + Ux_sp * sp_par[i]
+          )
+          curr_H <- rbind(curr_H, new_H)
+          Y <- c(Y, wide_y[,year])
+        }
+        colnames(curr_H) <- paste("node", 1:ncol(curr_H))
+        obs_H <- curr_H[-c((nrow(curr_H)-nrow(wide_y)+1):nrow(curr_H)),]
+        pred_H <- curr_H[c((nrow(curr_H)-nrow(wide_y)+1):nrow(curr_H)),]
+        print(paste("Now predicting year",year))
+        years_before <- curr_year - 1
+        obs_y <- Y[1:(years_before*nrow(wide_y))]
+        
+        glm_model <- glm(obs_y ~ ., family = poisson(link = "log"), data = as.data.frame(cbind(obs_y, obs_H)),
+                         control = glm.control(epsilon = 1e-8, maxit = 25, trace = TRUE))
+        glm_pred <- predict(glm_model, type = "response", newdata = as.data.frame(pred_H))
+        # for (school in 1:nrow(wide_y)) {
+        #   print(school)
+        #   obs_H <- curr_H[(0:(year-2))*nrow(wide_y)+school,]
+        #   obs_y <- sim_long$value[(0:(year-2))*nrow(wide_y)+school]
+        #   lasso_model <- glmnet(x = obs_H, y = obs_y, family = poisson(link = "log"), alpha = 1, lambda = 1)
+        # }
+        osh_pred_spesn[,curr_year-10] <- glm_pred
+      } 
+
+      all_mse[i,j] <- mean((osh_pred_spesn - as.matrix(wide_y[,11:15]))^2)
     }
   }
 }
 
-mean((osh_pred_spesn - as.matrix(wide_y[,11:15]))^2)
+
 var(as.vector(unlist(wide_y[,11:15])))
 
 
@@ -236,7 +269,7 @@ df_obs <- data.frame(
   long = sim_long[pred_idx, 1],
   lat = sim_long[pred_idx, 2],
   time = sim_long[pred_idx, 3],
-  value = sim_long[pred_idx, 4]
+  value = sim_long[pred_idx, 4] - as.vector(osh_pred_spesn)
 )
 
 # Plot
@@ -257,4 +290,5 @@ cowplot::plot_grid(p1,p2)
 
 
 
-
+# res <- sim_long[pred_idx, 4] - osh_pred_spesn
+# acf(res[100,])

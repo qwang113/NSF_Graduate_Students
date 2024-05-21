@@ -1,4 +1,8 @@
-{rm(list = ls())
+{
+rm(list = ls())
+sim_wide <- read.csv("D:/77/UCSC/study/Research/temp/norm_sim_wide.csv")
+sim_long <- read.csv("D:/77/UCSC/study/Research/temp/norm_sim.csv")
+wide_y <- as.matrix(sim_wide[,-c(1,2)])
   library(ggplot2)
   library(sp)
   library(fields)
@@ -12,18 +16,14 @@
   library(MASS)
   # use_condaenv("tf_gpu")
 }
-nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_car.csv")
-nsf_y <- nsf_wide_car[,-c(1:9,ncol(nsf_wide_car))]
 
-coords <- data.frame("long" = nsf_wide_car$long, "lat" = nsf_wide_car$lat)
+coords <- data.frame("long" = sim_wide$long, "lat" = sim_wide$lat)
 long <- coords$long
 lat <- coords$lat
 # carnegie_1994 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1994.csv", header = TRUE)
 # carnegie_1995 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1995.csv", header = TRUE)
 
-ggplot() +
-  geom_point(aes(x = jitter(long), y = jitter(lat), col = nsf_wide_car$X1972)) +
-  scale_color_viridis_c(limits = c(0,200))
+
 
 coordinates(coords) <- ~ long + lat
 
@@ -137,73 +137,102 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
+
+
 nh <- 50 # Number of hidden units in RNN
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
 pi_0 <- 0
 num_ensemble <- 1
-a_par <- c(0.1)
-nu_par <- c(0.5)
-res <- array(NA, dim = c(num_ensemble, length(a_par), length(nu_par)))
-sigmoid <- function(x){return(exp(x)/(1+exp(x)))}
-
-pred_y <- matrix(NA, nrow = nrow(nsf_y), ncol = 10)
+a <- c(1e-1)
+nu_par <- c(0.9)
+# res <- array(NA, dim = c(num_ensemble, length(a_par), length(nu_par)))
+# sigmoid <- function(x){return(1/(1+exp(-x)))}
+osh_pred_spesn <- matrix(NA, nrow = nrow(wide_y), ncol= length(46:50))
 
 for (ensem_idx in 1:num_ensemble) {
-  for (a_par_idx in 1:length(a_par) ) {
-    a <- a_par[a_par_idx]
-    for (nu_par_idx in 1:length(nu_par)) {
-      for (curr_year in 2012:2021) {
+      for(curr_year in 46:50){
+        
         # Generate W weight matrices
-        W <- matrix(runif(nh^2, -a, a), nrow = nh, ncol = nh)*rbinom(nh^2, 1, 1-pi_0)
+        W <- matrix(runif(nh^2, -a, a), nrow = nh, ncol = nh)
+        
         lambda_scale <- max(abs(eigen(W)$values))
         
-        # Figure out the dimension of EOFs, first PCA
-        prev_years <- nsf_y[,1:(curr_year-1972)]
-        pc_res <- prcomp(t(prev_years))
-        num_pc <- min(which(cumsum(pc_res$sdev^2)/(sum(pc_res$sdev^2)) >= 0.8 ))
-        pc_use <- apply(pc_res$x[,1:num_pc],2, min_max_scale)
-        # pc_use <- pc_res$x[,1:num_pc]
-        U_pc <- matrix(runif(nh*num_pc, -a, a), ncol = nh)
-        U_ar <- matrix(runif(nh, -a, a), ncol = 1) * rbinom(nh, 1, 1-pi_0)
-        U_sp <- matrix(runif(nh*ncol(conv_covar), -a, a), ncol = nh)
-
-        Ux_sp <- conv_covar %*% U_sp
-        Ux_sp <- matrix(0, nrow = nrow(nsf_wide_car), ncol = nh)
-        curr_H <- sigmoid(Ux_sp)
-        Y <- nsf_y[,1]
-        for (year in 2:(curr_year-1972+1)) {
-          new_H <- tanh(
-            nu_par[nu_par_idx]/lambda_scale * curr_H[((year-2)*nrow(nsf_y)+1):nrow(curr_H),] %*% W 
-            + (matrix( log(nsf_y[,year-1]+0.1))) %*% t(U_ar)
-            # + Ux_sp 
-            # + matrix(rep(pc_use[year-1,], nrow(nsf_y)), ncol = num_pc, byrow = TRUE) %*% U_pc
-          )
-          curr_H <- rbind(curr_H, new_H)
-          Y <- c(Y, nsf_y[,year])
+        curr_x <- matrix( c(rep(0,nrow(wide_y)), as.vector(conv_covar) ), ncol = 1 )
+        
+        nx <- length(curr_x)
+        
+        U <- matrix(runif(nh*nx, -a, a), nrow = nh, ncol = nx)
+        
+        curr_H <- tanh(U %*% curr_x)
+        H_mat <- curr_H
+        
+        for (year in 2:(curr_year)) {
+          
+          curr_x <- matrix( c(wide_y[,year-1], as.vector(conv_covar)), ncol = 1 )
+          new_H <- tanh( nu_par/lambda_scale * W %*% curr_H + U %*% curr_x)
+          H_mat <- cbind(H_mat,new_H)
+          curr_H <- new_H
+          
         }
-        colnames(curr_H) <- paste("node", 1:ncol(curr_H))
-        obs_H <- curr_H[-c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
-        pred_H <- curr_H[c((nrow(curr_H)-nrow(nsf_wide_car)+1):nrow(curr_H)),]
-        print(paste("Now predicting year",year))
-        years_before <- curr_year - 1972
-        obs_y <- Y[1:(years_before*nrow(nsf_wide_car))]
-        glm_model <- glm(obs_y ~ ., family = poisson(link = "log"), data = as.data.frame(cbind(obs_y, obs_H)), control = glm.control(trace = TRUE))
-        glm_pred <- predict(glm_model, type = "response", newdata = as.data.frame(pred_H))
-        pred_y[,curr_year-2011] <- glm_pred
+        
+        for (school in 1:nrow(wide_y)) {
+          print(paste("now doing year ", curr_year, "shcool",school))
+          obs_y <- matrix(wide_y[school,1:(curr_year-1)],ncol = 1)
+          obs_h <- t(H_mat[,-ncol(H_mat)])
+          cv_las <- cv.glmnet(x = obs_h, y = obs_y, alpha = 0)
+          curr_model_lasso <- glmnet(x = obs_h, y = obs_y, lambda = cv_las$lambda.min, alpha = 0)
+          osh_pred_spesn[school, curr_year-45] <- predict(curr_model_lasso, newx = t(H_mat[,ncol(H_mat)]))
+        }
+        
       }
     }
-  }
-}
 
-# print(nsf_y$X2012 - glm_pred)
+mean((osh_pred_spesn - as.matrix(wide_y[,46:50]))^2)
+var(as.vector(unlist(wide_y[,46:50])))
 
-res_all <- as.matrix(nsf_y)[,41:50] - pred_y
-apply(res_all^2, 2, mean)
-# write.csv( as.data.frame(pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/pcesn_pred.csv", row.names = FALSE)
-# write.csv( as.data.frame(res_all), "D:/77/UCSC/study/Research/temp/NSF_dat/pcesn_res.csv", row.names = FALSE)
 # 
-
-
-
-
+# pred_idx <- which(sim_long$time>45)
+# df_pred <- data.frame(
+#   long = sim_long[pred_idx, 1],
+#   lat = sim_long[pred_idx, 2],
+#   time = sim_long[pred_idx, 3],
+#   value = as.vector(osh_pred_spesn)
+# )
+# 
+# p1 <-
+#   ggplot(df_pred, aes(x = long, y = lat, fill = value)) +
+#   geom_tile() +
+#   facet_wrap(~time) +
+#   scale_fill_viridis_c() +
+#   theme_minimal() +
+#   labs(title = "Spatio-Temporal Data Heatmap",
+#        x = "Longitude",
+#        y = "Latitude",
+#        fill = "Value")
+# 
+# 
+# 
+# # Reshape y to a data frame
+# df_obs <- data.frame(
+#   long = sim_long[pred_idx, 1],
+#   lat = sim_long[pred_idx, 2],
+#   time = sim_long[pred_idx, 3],
+#   value = sim_long[pred_idx, 4]
+# )
+# 
+# # Plot
+# p2 <-
+#   ggplot(df_obs, aes(x = long, y = lat, fill = value)) +
+#   geom_tile() +
+#   facet_wrap(~time) +
+#   scale_fill_viridis_c() +
+#   theme_minimal() +
+#   labs(title = "Spatio-Temporal Data Heatmap",
+#        x = "Longitude",
+#        y = "Latitude",
+#        fill = "Value")
+# 
+# 
+# cowplot::plot_grid(p1,p2)
+# 

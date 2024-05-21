@@ -10,7 +10,7 @@ library(reticulate)
 library(tensorflow)
 library(glmnet)
 library(MASS)
-use_condaenv("tf_gpu")
+# use_condaenv("tf_gpu")
 
 # Simulate a spatial dataset from GP
 
@@ -154,6 +154,7 @@ all_dat <- as.data.frame(all_dat)
 tr_idx <- sample(1:num_obs, size = 0.8*num_obs)
 tr_dat <- all_dat[tr_idx,]
 te_dat <- all_dat[-tr_idx,]
+
 cv_model <- cv.glmnet(x = conv_covar, y = y, alpha = 0)
 curr_model <- glmnet(x = conv_covar, y = y, alpha = 0, lambda = cv_model$lambda.min)
 oo_pred <- predict(curr_model, conv_covar[-tr_idx,])

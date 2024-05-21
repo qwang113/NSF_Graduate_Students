@@ -15,27 +15,27 @@ use_condaenv("tf_gpu")
 # Simulate a spatial dataset from GP
 
 # Pois + GP
-# num_obs <- 3000
-# coords <- data.frame("long" = runif(num_obs),"lat" = runif(num_obs))
-# paired_dist <- as.matrix(dist(coords, diag = TRUE, upper = TRUE))
-# phi <- 0.5
-# sig <- 1
-# cov_mat <-  exp(-paired_dist/phi)*sig^2
-# lam <- as.vector(rmvnorm(1, mean = rep(3, num_obs), sigma = cov_mat))
-# y <- rpois(num_obs, lambda = exp(lam))
-
-# MVGaussian + ceiling
 num_obs <- 3000
 coords <- data.frame("long" = runif(num_obs),"lat" = runif(num_obs))
 paired_dist <- as.matrix(dist(coords, diag = TRUE, upper = TRUE))
 phi <- 0.5
-sig <- 50
+sig <- 1
 cov_mat <-  exp(-paired_dist/phi)*sig^2
-y <- ceiling(as.vector(rmvnorm(1, mean = rep(300, num_obs), sigma = cov_mat)))
+lam <- as.vector(rmvnorm(1, mean = rep(3, num_obs), sigma = cov_mat))
+y <- rpois(num_obs, lambda = exp(lam))
+
+# MVGaussian + ceiling
+# num_obs <- 3000
+# coords <- data.frame("long" = runif(num_obs),"lat" = runif(num_obs))
+# paired_dist <- as.matrix(dist(coords, diag = TRUE, upper = TRUE))
+# phi <- 0.5
+# sig <- 50
+# cov_mat <-  exp(-paired_dist/phi)*sig^2
+# y <- ceiling(as.vector(rmvnorm(1, mean = rep(300, num_obs), sigma = cov_mat)))
 
 
 ggplot() +
-  geom_point(aes(x = coords$long, y = coords$lat, color = y)) +
+  geom_point(aes(x = coords$long, y = coords$lat, color = log(y+1))) +
   scale_color_viridis_c()
 
 
@@ -112,7 +112,7 @@ for (i in 1:nrow(coords@coords)) {
 }
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
-a <- 0.1
+a <- 1
 
 my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
@@ -123,25 +123,28 @@ my_custom_initializer <- function(shape, dtype = NULL) {
 # }
 
 
-num_filters <- 200
+num_filters <- 64
 
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten()  %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten()  
+# %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten()  %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten()  
+# %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten()  %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten()  
+# %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -154,6 +157,10 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
+pc_conv <- prcomp(conv_covar)
+num_use <- min(which(cumsum(pc_conv$sdev^2)/sum(pc_conv$sdev^2) >0.99))
+pc_conv_use <- pc_conv$x[,1:num_use]
+conv_covar <- pc_conv_use
 
 
 all_dat <- cbind(y, conv_covar)
@@ -163,12 +170,14 @@ tr_idx <- sample(1:num_obs, size = 0.8*num_obs)
 tr_dat <- all_dat[tr_idx,]
 te_dat <- all_dat[-tr_idx,]
 
-cv_model <- cv.glmnet(x = conv_covar[tr_idx,], y = y[tr_idx], alpha = 0, nfolds = 10, trace.it = 1, family = poisson(link = "log"))
-curr_model <- glmnet(x = conv_covar[tr_idx,], y = y[tr_idx], alpha = 0, family = poisson(link = "log"), trace.it = 1)
-oo_pred <- predict(curr_model, conv_covar[-tr_idx,], type = "response")
 
-pois_glm <- glm(y~., data = tr_dat, family = poisson(link = "log"))
-oo_pred <- predict(pois_glm, te_dat[,-1], type = "response")
+
+cv_model <- cv.glmnet(x = conv_covar[tr_idx,], y = y[tr_idx], alpha = 0, nfolds = 10, trace.it = 1, family = poisson(link = "log"))
+curr_model <- glmnet(x = conv_covar[tr_idx,], y = y[tr_idx], alpha = 0, family = poisson(link = "log"), trace.it = 1,lambda = cv_model$lambda.min)
+oo_pred <- predict(curr_model, newx = conv_covar[-tr_idx,], type = "response")
+
+# pois_glm <- glm(y~., data = tr_dat, family = poisson(link = "log"))
+# oo_pred <- predict(pois_glm, te_dat[,-1], type = "response")
 
 
 # cv_model <- cv.glmnet(x = conv_covar[tr_idx,], y = sqrt(y[tr_idx]), alpha = 0, nfolds = 10, trace.it = 1)
@@ -176,9 +185,9 @@ oo_pred <- predict(pois_glm, te_dat[,-1], type = "response")
 # oo_pred <- (predict(no_reg, as.matrix(te_dat[,-1])))^2
 
 
-oo_mse <- mean((y[-tr_idx]-oo_pred)^2)
-oo_var <- var(y[-tr_idx])
-oo_mse
+oo_lmse <- mean((log(y[-tr_idx]+1)-log(oo_pred+1))^2)
+oo_var <- var(log(y[-tr_idx]+1))
+oo_lmse
 oo_var
 1-oo_mse/oo_var
 # Result: Even if poisson cannot handle GP simulated Count data set. So what kind of data can it handle?

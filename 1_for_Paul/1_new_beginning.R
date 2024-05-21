@@ -94,7 +94,7 @@ for (i in 1:nrow(coords@coords)) {
 }
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
-a <- 1
+a <- .01
 
 my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
@@ -137,6 +137,7 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
+
 nh <- 50 # Number of hidden units in RNN
 min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
@@ -169,14 +170,14 @@ for (ensem_idx in 1:num_ensemble) {
         U_sp <- matrix(runif(nh*ncol(conv_covar), -a, a), ncol = nh)
 
         Ux_sp <- conv_covar %*% U_sp
-        Ux_sp <- matrix(0, nrow = nrow(nsf_wide_car), ncol = nh)
+        # Ux_sp <- matrix(0, nrow = nrow(nsf_wide_car), ncol = nh)
         curr_H <- sigmoid(Ux_sp)
         Y <- nsf_y[,1]
         for (year in 2:(curr_year-1972+1)) {
           new_H <- tanh(
-            nu_par[nu_par_idx]/lambda_scale * curr_H[((year-2)*nrow(nsf_y)+1):nrow(curr_H),] %*% W 
+            nu_par[nu_par_idx]/lambda_scale * curr_H[((year-2)*nrow(nsf_y)+1):nrow(curr_H),] %*% W
             + (matrix( log(nsf_y[,year-1]+0.1))) %*% t(U_ar)
-            # + Ux_sp 
+            + Ux_sp
             # + matrix(rep(pc_use[year-1,], nrow(nsf_y)), ncol = num_pc, byrow = TRUE) %*% U_pc
           )
           curr_H <- rbind(curr_H, new_H)
@@ -202,8 +203,12 @@ res_all <- as.matrix(nsf_y)[,41:50] - pred_y
 apply(res_all^2, 2, mean)
 # write.csv( as.data.frame(pred_y), "D:/77/UCSC/study/Research/temp/NSF_dat/pcesn_pred.csv", row.names = FALSE)
 # write.csv( as.data.frame(res_all), "D:/77/UCSC/study/Research/temp/NSF_dat/pcesn_res.csv", row.names = FALSE)
-# 
+mean(res_all^2)
 
 
-
+ggplot() +
+  geom_density(aes(x = Ux_sp)) +
+  geom_density(aes(x = (matrix( log(nsf_y[,year-1]+0.1))) %*% t(U_ar)), color = "red") +
+  geom_density(aes(x = nu_par[nu_par_idx]/lambda_scale * curr_H[((year-2)*nrow(nsf_y)+1):nrow(curr_H),] %*% W),
+               color = "green")
 

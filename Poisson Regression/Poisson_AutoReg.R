@@ -11,27 +11,23 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
 #   }
   
   wide_y <- nsf_wide_car[,-c(1:9, ncol(nsf_wide_car))]
-  
-  dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
-  # dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
-  # dummy_matrix <- cbind(dummy_school, dummy_car)
-  dummy_matrix <- dummy_car
+  # 
+  # dummy_car <- model.matrix(~nsf_wide_car$HD2021.Carnegie.Classification.2021..Graduate.Instructional.Program - 1)
+  # # dummy_school <- model.matrix(~nsf_wide$UNITID - 1)
+  # # dummy_matrix <- cbind(dummy_school, dummy_car)
+  # dummy_matrix <- dummy_car
   
   osh_pred <- matrix(NA, nrow = nrow(wide_y), ncol = length(2012:2021))
   
   #All schools pooled together
   # for (year in 2012:2021) {
   #   long_yt <- unlist(as.vector(wide_y[,2:(year-1972)]))
-  #   long_yt_lag <- unlist(as.vector(wide_y[,1:(year-1972-1)]))
-  #   curr_dummy <- matrix(rep(t(dummy_matrix), year-1972-1), ncol = ncol(dummy_matrix), byrow = T)[,-1]
-  #   obs_dat <- data.frame(cbind(long_yt, long_yt_lag, curr_dummy))
+  #   long_yt_lag <- log(unlist(as.vector(wide_y[,1:(year-1972-1)]))+1)
+  #   obs_dat <- data.frame(cbind(long_yt, long_yt_lag))
   #   curr_model <- glm(long_yt~., family = poisson(link = "log"), data = obs_dat)
-  #   pred_yt_lag <- wide_y[,year-1972]
-  #   pred_dummy <- dummy_matrix[,-1]
-  #   pred_mat <- cbind(pred_yt_lag, pred_dummy)
-  #   colnames(pred_mat) <- colnames(obs_dat)[-1]
-  #   pred_dat <- data.frame(pred_mat)
-  #   osh_pred[,year-2011] <- predict(curr_model, newdata = pred_dat, type = "response")
+  #   pred_name <- colnames(obs_dat)[2]
+  #   pred_mat <- data.frame(long_yt_lag = log(wide_y[,year-1972]+1)) 
+  #   osh_pred[,year-2011] <- predict(curr_model, newdata = pred_mat, type = "response")
   # }
   # 
   # osh_res <- wide_y[,41:50] - osh_pred
@@ -42,20 +38,20 @@ nsf_wide_car <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_
     for (school in 1:nrow(wide_y)) {
       print(paste("now doing year", year, "school", school))
       prev_obs <- unlist(wide_y[school,2:(year-1972)]) 
-      lag_obs <- unlist(wide_y[school, 1:(year-1972-1)])
+      lag_obs <- log(unlist(wide_y[school, 1:(year-1972-1)])+1)
       model <- glm(prev_obs ~ lag_obs, family = poisson(link = "log"))
-      osh_pred[school, year-2011] <- predict(model, newdata = data.frame("lag_obs"=unlist(wide_y[school, year-1972])),
+      osh_pred[school, year-2011] <- predict(model, newdata = data.frame("lag_obs"=unlist(log(wide_y[school, year-1972]+1))),
                                              type = "response")
     }
   }
   
   osh_res <- wide_y[,41:50] - osh_pred
-  
+  mean(unlist(osh_res)^2)
   
   # if(out.rm == 0){
-    # print("Full dataset")
-    write.csv( as.data.frame(osh_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred.csv", row.names = FALSE)
-    write.csv( as.data.frame(osh_res), "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res.csv", row.names = FALSE)
+    # # print("Full dataset")
+    # write.csv( as.data.frame(osh_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred.csv", row.names = FALSE)
+    # write.csv( as.data.frame(osh_res), "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_res.csv", row.names = FALSE)
   # }else{
   #   print("Not Full dataset")
   #   write.csv( as.data.frame(osh_pred), "D:/77/UCSC/study/Research/temp/NSF_dat/pois_autoreg_pred_outrm.csv", row.names = FALSE)

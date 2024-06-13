@@ -1,33 +1,28 @@
+{
 rm(list = ls())
-library(ggplot2)
-library(sp)
-library(fields)
-library(mvtnorm)
-library(FRK)
-library(utils)
-library(keras)
-library(reticulate)
-library(tensorflow)
-library(glmnet)
-library(MASS)
-# use_condaenv("tf_gpu")
+sim_wide <- read.csv("D:/77/UCSC/study/Research/temp/norm_sim_wide.csv")
+sim_long <- read.csv("D:/77/UCSC/study/Research/temp/norm_sim.csv")
+wide_y <- as.matrix(sim_wide[,-c(1,2)])
+  library(ggplot2)
+  library(sp)
+  library(fields)
+  library(mvtnorm)
+  library(FRK)
+  library(utils)
+  library(keras)
+  library(reticulate)
+  library(tensorflow)
+  library(glmnet)
+  library(MASS)
+  # use_condaenv("tf_gpu")
+}
 
-# Simulate a spatial dataset from GP
-
-num_obs <- 2000
-coords <- data.frame("long" = runif(num_obs),"lat" = runif(num_obs))
-paired_dist <- as.matrix(dist(coords, diag = TRUE, upper = TRUE))
-phi <- 0.2
-sig <- 1
-cov_mat <-  exp(-paired_dist/phi)*sig^2
-y <- as.vector(rmvnorm(1, mean = rep(0, num_obs), sigma = cov_mat))
-
-ggplot() +
-  geom_point(aes(x = coords$long, y = coords$lat, color = y)) +
-  scale_color_viridis_c()
-
+coords <- data.frame("long" = sim_wide$long, "lat" = sim_wide$lat)
 long <- coords$long
 lat <- coords$lat
+# carnegie_1994 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1994.csv", header = TRUE)
+# carnegie_1995 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/1995.csv", header = TRUE)
+
 
 
 coordinates(coords) <- ~ long + lat
@@ -36,6 +31,10 @@ gridbasis1 <- auto_basis(mainfold = plane(), data = coords, nres = 1, type = "Ga
 gridbasis2 <- auto_basis(mainfold = plane(), data = coords, nres = 2, type = "Gaussian", regular = 1)
 gridbasis3 <- auto_basis(mainfold = plane(), data = coords, nres = 3, type = "Gaussian", regular = 1)
 
+show_basis(gridbasis3) +
+  coord_fixed() +
+  xlab("Longitude") +
+  ylab("Latitude")
 
 
 
@@ -95,15 +94,13 @@ for (i in 1:nrow(coords@coords)) {
 }
 basis_arr_3 <- array_reshape(basis_arr_3,c(dim(basis_arr_3),1))
 
-a <- 0.01
+a <- 1
 
 my_custom_initializer <- function(shape, dtype = NULL) {
   return(tf$random$uniform(shape, minval = -a, maxval = a, dtype = dtype))
 }
 
-# my_custom_initializer <- function(shape, dtype = NULL) {
-#   return(tf$random$normal(shape,mean = 0, stddev = 0.1, dtype = dtype))
-# }
+
 
 
 num_filters <- 64
@@ -111,23 +108,20 @@ num_filters <- 64
 st_model_res_1 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_1, shape_col_1, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() 
-# %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 st_model_res_2 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_2, shape_col_2, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() 
-# %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 
 
 st_model_res_3 <- keras_model_sequential() %>%
   layer_conv_2d(filters = num_filters, kernel_size = c(3, 3), activation = "tanh",
                 input_shape = c(shape_row_3, shape_col_3, 1), kernel_initializer = my_custom_initializer) %>%
-  layer_flatten() 
-# %>% layer_dense(units = 200, kernel_initializer = my_custom_initializer, activation = "tanh")
+  layer_flatten() %>% layer_dense(units = 100, kernel_initializer = my_custom_initializer, activation = "tanh")
 
 convoluted_res1 <- predict(st_model_res_1,basis_arr_1)
 convoluted_res2 <- predict(st_model_res_2,basis_arr_2)
@@ -135,6 +129,7 @@ convoluted_res3 <- predict(st_model_res_3,basis_arr_3)
 
 # conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,,,],convoluted_res2[1,,,],convoluted_res3[1,,,])))
 conv_covar <- matrix(NA,nrow = length(long), ncol = length(c(convoluted_res1[1,],convoluted_res2[1,],convoluted_res3[1,])))
+
 pb <- txtProgressBar(min = 1, max = length(long), style = 3)
 for (i in 1:length(long)) {
   setTxtProgressBar(pb, i)
@@ -142,34 +137,102 @@ for (i in 1:length(long)) {
   conv_covar[i,] <- c(as.vector(convoluted_res1[i,]),as.vector(convoluted_res2[i,]),as.vector(convoluted_res3[i,]))
 }
 
-pc_conv <- prcomp(conv_covar)
-num_use <- min(which(cumsum(pc_conv$sdev^2)/sum(pc_conv$sdev^2) >0.99))
-pc_conv_use <- pc_conv$x[,1:num_use]
-conv_covar <- pc_conv_use
 
 
-all_dat <- cbind(y, conv_covar)
-colnames(all_dat) <- c("y",1:ncol(conv_covar))
-all_dat <- as.data.frame(all_dat)
-tr_idx <- sample(1:num_obs, size = 0.8*num_obs)
-tr_dat <- all_dat[tr_idx,]
-te_dat <- all_dat[-tr_idx,]
+nh <- 50 # Number of hidden units in RNN
+min_max_scale <- function(x){return((x-min(x))/diff(range(x)))}
 
-cv_model <- cv.glmnet(x = conv_covar, y = y, alpha = 0)
-curr_model <- glmnet(x = conv_covar, y = y, alpha = 0, lambda = cv_model$lambda.min)
-oo_pred <- predict(curr_model, conv_covar[-tr_idx,])
+pi_0 <- 0
+num_ensemble <- 1
+a <- c(1e-1)
+nu_par <- c(0.9)
+# res <- array(NA, dim = c(num_ensemble, length(a_par), length(nu_par)))
+# sigmoid <- function(x){return(1/(1+exp(-x)))}
+osh_pred_spesn <- matrix(NA, nrow = nrow(wide_y), ncol= length(46:50))
 
-# curr_model <- lm(y~., data = tr_dat)
-# oo_pred <- predict(curr_model, te_dat[,-1])
+for (ensem_idx in 1:num_ensemble) {
+      for(curr_year in 46:50){
+        
+        # Generate W weight matrices
+        W <- matrix(runif(nh^2, -a, a), nrow = nh, ncol = nh)
+        
+        lambda_scale <- max(abs(eigen(W)$values))
+        
+        curr_x <- matrix( c(rep(0,nrow(wide_y)), as.vector(conv_covar) ), ncol = 1 )
+        
+        nx <- length(curr_x)
+        
+        U <- matrix(runif(nh*nx, -a, a), nrow = nh, ncol = nx)
+        
+        curr_H <- tanh(U %*% curr_x)
+        H_mat <- curr_H
+        
+        for (year in 2:(curr_year)) {
+          
+          curr_x <- matrix( c(wide_y[,year-1], as.vector(conv_covar)), ncol = 1 )
+          new_H <- tanh( nu_par/lambda_scale * W %*% curr_H + U %*% curr_x)
+          H_mat <- cbind(H_mat,new_H)
+          curr_H <- new_H
+          
+        }
+        
+        for (school in 1:nrow(wide_y)) {
+          print(paste("now doing year ", curr_year, "shcool",school))
+          obs_y <- matrix(wide_y[school,1:(curr_year-1)],ncol = 1)
+          obs_h <- t(H_mat[,-ncol(H_mat)])
+          cv_las <- cv.glmnet(x = obs_h, y = obs_y, alpha = 0)
+          curr_model_lasso <- glmnet(x = obs_h, y = obs_y, lambda = cv_las$lambda.min, alpha = 0)
+          osh_pred_spesn[school, curr_year-45] <- predict(curr_model_lasso, newx = t(H_mat[,ncol(H_mat)]))
+        }
+        
+      }
+    }
 
-oo_mse <- mean((y[-tr_idx]-oo_pred)^2)
-oo_var <- var(y[-tr_idx])
-oo_mse
-oo_var
+mean((osh_pred_spesn - as.matrix(wide_y[,46:50]))^2)
+var(as.vector(unlist(wide_y[,46:50])))
 
-
-# Findings:
-
-# If we add fully connect layer, it seems to destroy the convolutional structure, the pmse is 0.1
-# If we use principal components from output of CNN, it is bad too.
-# The best model is to use direct output from fixed weight cnn.
+# 
+# pred_idx <- which(sim_long$time>45)
+# df_pred <- data.frame(
+#   long = sim_long[pred_idx, 1],
+#   lat = sim_long[pred_idx, 2],
+#   time = sim_long[pred_idx, 3],
+#   value = as.vector(osh_pred_spesn)
+# )
+# 
+# p1 <-
+#   ggplot(df_pred, aes(x = long, y = lat, fill = value)) +
+#   geom_tile() +
+#   facet_wrap(~time) +
+#   scale_fill_viridis_c() +
+#   theme_minimal() +
+#   labs(title = "Spatio-Temporal Data Heatmap",
+#        x = "Longitude",
+#        y = "Latitude",
+#        fill = "Value")
+# 
+# 
+# 
+# # Reshape y to a data frame
+# df_obs <- data.frame(
+#   long = sim_long[pred_idx, 1],
+#   lat = sim_long[pred_idx, 2],
+#   time = sim_long[pred_idx, 3],
+#   value = sim_long[pred_idx, 4]
+# )
+# 
+# # Plot
+# p2 <-
+#   ggplot(df_obs, aes(x = long, y = lat, fill = value)) +
+#   geom_tile() +
+#   facet_wrap(~time) +
+#   scale_fill_viridis_c() +
+#   theme_minimal() +
+#   labs(title = "Spatio-Temporal Data Heatmap",
+#        x = "Longitude",
+#        y = "Latitude",
+#        fill = "Value")
+# 
+# 
+# cowplot::plot_grid(p1,p2)
+# 

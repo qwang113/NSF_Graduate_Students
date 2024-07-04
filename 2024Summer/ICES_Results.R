@@ -112,8 +112,8 @@ bPois <- function(X, Y, alpha=1000, w=1000, p=1000, sigb=.5, iter=10, burn=5, ep
   r <- ncol(X)
   n <- length(Y)
   aBeta <- c((Y+eps), rep(alpha,r))
-  aK <- c(rep(alpha, r), w)
-  kK <- c(rep(alpha, r), p)
+  # aK <- c(rep(alpha, r), w)
+  # kK <- c(rep(alpha, r), p)
   betaOut <- matrix(NA, nrow=iter, ncol=r)
   beta <- rep(1,p)
   sigKinv <- .1

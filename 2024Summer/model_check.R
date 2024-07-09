@@ -1,0 +1,12 @@
+tilde_eta <- as.matrix(read.csv(here::here("eta.csv")))
+sig_xi <- as.matrix(read.csv(here::here("sig_xi.csv")))
+pred_H <- as.matrix(read.csv(here::here("pred_h.csv")))
+schools <- read.csv(here::here("nsf_final_wide_car.csv"))
+schoolsM <- as.matrix(schools[,10:59])
+Xpred <- model.matrix( ~ factor(state) -1, data = schools)
+true_y <- schoolsM[,41]
+pred_mat <- cbind(pred_H,Xpred)
+pred_samples <- exp(pred_mat%*%tilde_eta)
+pred_mean <- apply(pred_samples,1,mean)
+mean((true_y - pred_mean)^2)
+mean((true_y - predsBayes)^2)

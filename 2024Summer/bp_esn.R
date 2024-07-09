@@ -57,8 +57,8 @@ pos_sig_xi <- function(sig_xi, xi, alpha){
 
 # MCMC parameters
 total_samples <- 1000
-burn = 1000
-thin = 5
+burn = 500
+thin = 2
 alpha = 1000
 
 #Hyper-parameters
@@ -110,3 +110,4 @@ while (save_idx < total_samples) {
 }
 write.csv(tilde_eta, here::here("eta.csv"), row.names = FALSE)
 write.csv(sig_xi, here::here("sig_xi.csv"), row.names = FALSE)
+write.csv(H$pred_h,here::here("pred_h.csv"), row.names = FALSE)

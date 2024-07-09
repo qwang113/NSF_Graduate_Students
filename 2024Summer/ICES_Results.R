@@ -3,7 +3,8 @@ library(glmnet)
 library(tscount)
 
 
-schools <- read_csv(here::here("nsf_final_wide_car.csv")) %>% filter(state=="CA")
+schools <- read_csv(here::here("nsf_final_wide_car.csv")) 
+# %>% filter(state=="CA")
 schoolsM <- as.matrix(schools[-c(81,97),10:59])
 schoolsM <- as.matrix(schools[,10:59])
 
@@ -173,7 +174,7 @@ Pois_ESN_Bayes <- function(Xin, Yin, Xpred, nh=120, lambda=0.5, nu=0.35, rv=0.01
 
 set.seed(1)
 MSE <- MSLE <- COV <- IS <- matrix(NA, nrow=5, ncol=5)
-for(TY in 46:50){
+for(TY in 41:41){
   PredY <- TY
   train <- schoolsM[,1:(PredY-1)]
   test <- schoolsM[,PredY]
@@ -237,3 +238,5 @@ MSE
 MSLE
 COV
 IS
+
+write.csv(predsBayes, here::here("separate_bayesESN.csv"), row.names = FALSE)

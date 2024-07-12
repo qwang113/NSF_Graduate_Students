@@ -19,8 +19,7 @@ nh=120
 nu = 0.35
 aw = pw = au = pu = 0.1
 reps = 1
-ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, reps=1){
-    for(r in 1:reps){
+ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1){
       ## Fit
       p <- ncol(Xin)
       W <- matrix(runif(nh*nh, min=-aw, max=aw), nrow=nh) * matrix(rbinom(nh*nh,1,1-pw), nrow=nh)
@@ -36,11 +35,13 @@ ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.
         H <- rbind(H, tmp_new)
       }
       Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + Xin%*%t(U) + matrix( Yin[,ncol(Yin)], ncol = 1 ) %*% t(Uy)) 
-    }
     return(list("train_h" = H, "pred_h" = Hpred))
 }
 state_idx <- model.matrix( ~ factor(state) -1, data = schools)
-H <- ESN_expansion(Xin = state_idx, Yin = schoolsM[,1:40], Xpred = state_idx)
+
+# Generate H
+H <- ESN_expansion(Xin = state_idx, Yin = schoolsM[,1:40], Xpred = state_idx, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1)
+
 print(H)
 # Number of times to repeat
 n <- ncol(Yin)
@@ -63,7 +64,7 @@ alpha = 1000
 
 #Hyper-parameters
 
-sig_eta = 1 
+sig_eta = 10
 eps = 1 # Avoid underflow, avoid log(0)
 
 # Input Data

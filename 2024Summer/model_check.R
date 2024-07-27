@@ -1,7 +1,7 @@
 tilde_eta <- as.matrix(read.csv(here::here("eta.csv")))
-sig_xi <- as.matrix(read.csv(here::here("sig_xi.csv")))
 pred_H <- as.matrix(read.csv(here::here("pred_h.csv")))
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
+predsBayes <- as.matrix(read.csv(here::here("separate_bayesESN.csv")))
 schoolsM <- as.matrix(schools[,10:59])
 Xpred <- model.matrix( ~ factor(state) -1, data = schools)
 true_y <- schoolsM[,41]

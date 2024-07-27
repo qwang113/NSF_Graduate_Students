@@ -3,8 +3,7 @@ library(glmnet)
 library(tscount)
 
 
-schools <- read_csv(here::here("nsf_final_wide_car.csv")) 
-# %>% filter(state=="CA")
+schools <- read_csv("nsf_final_wide_car.csv") 
 schoolsM <- as.matrix(schools[-c(81,97),10:59])
 schoolsM <- as.matrix(schools[,10:59])
 
@@ -25,7 +24,7 @@ Pois_ESN <- function(Xin, Yin, Xpred, nh=120, lambda=0.1, nu=0.35, rv=0.01, aw=0
       H[i,] <- tanh(tmp)
     }
     Hnew <- H
-
+    
     
     Hpred <- matrix(NA, nrow=nrow(Xpred), ncol=nh)
     tmp <- W%*%H[nrow(H), ] + U%*%Xpred[1,]
@@ -113,8 +112,8 @@ bPois <- function(X, Y, alpha=1000, w=1000, p=1000, sigb=.5, iter=10, burn=5, ep
   r <- ncol(X)
   n <- length(Y)
   aBeta <- c((Y+eps), rep(alpha,r))
-  # aK <- c(rep(alpha, r), w)
-  # kK <- c(rep(alpha, r), p)
+  aK <- c(rep(alpha, r), w)
+  kK <- c(rep(alpha, r), p)
   betaOut <- matrix(NA, nrow=iter, ncol=r)
   beta <- rep(1,p)
   sigKinv <- .1
@@ -158,7 +157,7 @@ Pois_ESN_Bayes <- function(Xin, Yin, Xpred, nh=120, lambda=0.5, nu=0.35, rv=0.01
         }
       }
       
-
+      
       fit <- bPois(X=Hnew, Y=Yin[,j])
       Ypred <- exp(Hpred%*%t(fit$Beta))
       Preds[,j,r] <- median(Ypred)
@@ -174,7 +173,7 @@ Pois_ESN_Bayes <- function(Xin, Yin, Xpred, nh=120, lambda=0.5, nu=0.35, rv=0.01
 
 set.seed(1)
 MSE <- MSLE <- COV <- IS <- matrix(NA, nrow=5, ncol=5)
-for(TY in 41:41){
+for(TY in 46:50){
   PredY <- TY
   train <- schoolsM[,1:(PredY-1)]
   test <- schoolsM[,PredY]
@@ -224,12 +223,12 @@ for(TY in 41:41){
   COV[5,(TY-45)] <- mean(test < hBayes & test > lBayes)
   
   IS[2,(TY-45)] <- mean((hAR -lAR) + 2/.05*(lAR - test)*(test<lAR) + 
-             2/.05*(test-hAR)*(test>hAR))
+                          2/.05*(test-hAR)*(test>hAR))
   IS[4,(TY-45)] <- mean((hEns -lEns) + 2/.05*(lEns - test)*(test<lEns) + 
                           2/.05*(test-hEns)*(test>hEns))
   IS[5,(TY-45)] <- mean((hBayes -lBayes) + 2/.05*(lBayes - test)*(test<lBayes) + 
                           2/.05*(test-hBayes)*(test>hBayes))
-    
+  
   
   print(TY)
 }
@@ -239,4 +238,6 @@ MSLE
 COV
 IS
 
-write.csv(predsBayes, here::here("separate_bayesESN.csv"), row.names = FALSE)
+
+
+write.csv(MSE, here::here("MSE.csv"))

@@ -18,7 +18,7 @@ pos_sig_xi <- function(sig_xi, xi, alpha){
   return(loglike)
 }
 
-ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1){
+ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
   ## Fit
   p <- ncol(Xin)
   W <- matrix(runif(nh*nh, min=-aw, max=aw), nrow=nh) * matrix(rbinom(nh*nh,1,1-pw), nrow=nh)
@@ -29,34 +29,59 @@ ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.
   tmp <- tanh(Xin %*% t(U))
   H <- tmp
   for(i in 2:ncol(Yin)){
-    tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix(Yin[,i-1], ncol = 1 ) %*% t(Uy) ) 
+    tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix( log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new
     H <- rbind(H, tmp_new)
   }
-  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + Xin%*%t(U) + matrix( Yin[,ncol(Yin)], ncol = 1 ) %*% t(Uy)) 
+  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + Xin%*%t(U) + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
   return(list("train_h" = H, "pred_h" = Hpred))
 }
+
+
+state_idx <- model.matrix( ~ factor(state) -1, data = schools)
+
+
 # MCMC parameters
 total_samples <- 1000
 burn = 500
 thin = 2
 alpha = 1000
 years_to_pred <- 46:50
+
+#Hyper-parameters
+sig_eta_inv = 100
+eps = 1 # Avoid underflow, avoid log(0)
+
+
+
+# ESN Parameters
+nh = 120
+nu = 0.9
+aw = au = 0.1
+pw = pu = 0.1
+reps = 100
+
+# Penalization parameter for Lasso/Ridge for ESN in frequentist view
+lambda <- 0.01
+
+# Initialization
 pred_all_int <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
 pred_all_sep <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
+pred_all_single_esn <- matrix(NA, nrow = nrow(schoolsM), ncol = length(years_to_pred))
+pred_all_ensemble_esn <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),reps))
+
+# INGARCH model has model uncertainty, 3 dimensions to save CI's
+pred_all_ING <-  array(NA, dim = c(3,length(years_to_pred), nrow(schoolsM)))
+
+
+
 for (years in years_to_pred) {
   # Set up hypeparameters for ESN
   Xin <- Xpred <- model.matrix( ~ factor(state) -1, data = schools)
   Yin <- schoolsM[,1:years]
-  nh = 120
-  nu = 0.9
-  aw = au = 0.1
-  pw = pu = 0.1
-  reps = 1
-  state_idx <- model.matrix( ~ factor(state) -1, data = schools)
   
   # Generate H
-  H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu)
+  H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
   
   # Number of times to repeat
   n <- ncol(Yin)
@@ -64,10 +89,6 @@ for (years in years_to_pred) {
   repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
   design_mat <- cbind(H$train_h, repeated_state)
   
-  #Hyper-parameters
-  
-  sig_eta_inv = 100
-  eps = 1 # Avoid underflow, avoid log(0)
   
   # Input Data
   nh <- dim(H$train_h)[2]
@@ -78,7 +99,7 @@ for (years in years_to_pred) {
   sig_xi_inv <- rep(NA, total_samples)
   sep_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
   
-  # Separate fitting model ---------------------------------------------------------------------------
+  # Bayesian - separate fitting model ---------------------------------------------------------------------------
   for (idx in 1:total_samples) {
     print(idx)
     for (i in 1:nrow(schoolsM)) {
@@ -95,7 +116,7 @@ for (years in years_to_pred) {
   
   int_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
   pred_all_sep[years-min(years_to_pred)+1,,] <- sep_eta_pred
-  # Random Effect Model ----------------------------------------------------------------------------------------  
+  # Bayesian - Integrated random Effect Model ----------------------------------------------------------------------------------------  
   
   # Initialization
   curr_eta <- matrix(0,nrow = dim(tilde_eta)[1], ncol = 1)
@@ -135,11 +156,34 @@ for (years in years_to_pred) {
     } 
     print(curr_idx)
   }
+  # Frequentist - Integrated Model (Single)----------------------------------------------------------------------------------------  
+  
+  fit_fesn <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)
+  pred_all_single_esn[,years - min(years_to_pred) + 1] <- predict(fit_fesn, newx = H$pred_h, type = "response")
+  # Frequentist - Integrated Model (Ensemble)----------------------------------------------------------------------------------------  
+  
+  for(j in 1:reps){
+  H <-  ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
+  fit_fesn_ens <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)
+  pred_all_ensemble_esn[years - min(years_to_pred) + 1,,j] <- predict(fit_fesn_ens, newx = H$pred_h, ytpe = "response")
+}
+  
+  # Frequentist - INGARCH(1,1) ----------------------------------------------------------------------------------------  
+  for (k in 1:nrow(schoolsM)) {
+    tmp_ingarch <- tsglm(Yin[k,1:(years-1)], model = list(past_obs = 1, past_mean = 1), dist = "poisson")
+    pred_all_ING[1,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$pred
+    pred_all_ING[2,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[1]
+    pred_all_ING[3,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[2]
+    }
 
 }
 
 saveRDS(pred_all_int, file="pred_all_int.Rda")
 saveRDS(pred_all_sep, file="pred_all_sep.Rda")
+saveRDS(pred_all_single_esn, file="pred_all_single_esn.Rda")
+saveRDS(pred_all_ensemble_esn, file = "pred_all_ensemble_esn.Rda")
+saveRDS(pred_all_ING, file = "pred_all_ING.Rda")
+
 
 # write.csv(tilde_eta, here::here("eta.csv"), row.names = FALSE)
 # write.csv(sig_xi_inv, here::here("sig_xi_inv.csv"), row.names = FALSE)

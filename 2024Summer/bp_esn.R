@@ -103,18 +103,18 @@ for (years in years_to_pred) {
   for (idx in 1:total_samples) {
     print(idx)
     for (i in 1:nrow(schoolsM)) {
-      curr_idx_h <- seq(from = i, to = i + nrow(schoolsM)*(nrow(H$train_h)/nrow(schoolsM) - 1), by = nrow(schoolsM))
+      # curr_idx_h <- seq(from = i, to = i + nrow(schoolsM)*(nrow(H$train_h)/nrow(schoolsM) - 1), by = nrow(schoolsM))
+      curr_idx_h <- i + (0:(years - 2))*nrow(schoolsM)
       curr_H <- H$train_h[curr_idx_h,]
       curr_H_sep <- rbind(curr_H,alpha^{-1/2}*diag(rep(sig_eta_inv,nh)))
-      curr_y <- Yin[i,]
-      curr_alpha <- matrix(c(curr_y, rep(alpha,nh)), ncol = 1)
-      curr_kappa <- matrix(c(rep(1, ncol(Yin)), rep(alpha, nh)), ncol = 1)
+      curr_y <- Yin[i,1:(years-1)]
+      curr_alpha <- matrix(c(curr_y+eps, rep(alpha,nh)), ncol = 1)
+      curr_kappa <- matrix(c(rep(1, ncol(Yin)-1), rep(alpha, nh)), ncol = 1)
       curr_pos_eta <- rCMLG(H = curr_H_sep, alpha = curr_alpha, kappa = curr_kappa)
       sep_eta_pred[i,idx] <- exp(H$pred_h[i,] %*% curr_pos_eta)
     }
   }
   
-  int_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
   pred_all_sep[years-min(years_to_pred)+1,,] <- sep_eta_pred
   # Bayesian - Integrated random Effect Model ----------------------------------------------------------------------------------------  
   
@@ -123,6 +123,8 @@ for (years in years_to_pred) {
   curr_sig_xi_inv <- 0.1
   curr_idx <- 1
   save_idx <- 0
+  int_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
+  
   while (save_idx < total_samples) {
     # Define current H_eta
     curr_H_eta <- rbind(design_mat, alpha^{-1/2}*diag(c(rep(sig_eta_inv,nh), rep(curr_sig_xi_inv,ns))))
@@ -165,7 +167,7 @@ for (years in years_to_pred) {
   for(j in 1:reps){
   H <-  ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
   fit_fesn_ens <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)
-  pred_all_ensemble_esn[years - min(years_to_pred) + 1,,j] <- predict(fit_fesn_ens, newx = H$pred_h, ytpe = "response")
+  pred_all_ensemble_esn[years - min(years_to_pred) + 1,,j] <- predict(fit_fesn_ens, newx = H$pred_h, type = "response")
 }
   
   # Frequentist - INGARCH(1,1) ----------------------------------------------------------------------------------------  

@@ -1,4 +1,5 @@
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
+schoolsM <- as.matrix(schools[,10:59])
 int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")
 sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")
 ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")
@@ -23,51 +24,20 @@ ingarch_low <- ingarch_pred[3,,]
 
 ensemble_up <- apply(ensemble_esn_pred, c(1,2), quantile, 1-alpha/2)
 ensemble_low <- apply(ensemble_esn_pred, c(1,2), quantile, alpha/2)
-
-
-for (years in years_to_pred) {
-  # Set up hypeparameters for ESN
-  Xin <- Xpred <- model.matrix( ~ factor(state) -1, data = schools)
-  Yin <- schoolsM[,1:years]
-  
-  # Generate H
-  H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
-  
-  # Number of times to repeat
-  n <- ncol(Yin)
-  # Repeat the matrix and bind by rows
-  repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
-  design_mat <- cbind(H$train_h, repeated_state)
-  
-  
-  # Input Data
-  nh <- dim(H$train_h)[2]
-  ns <- dim(state_idx)[2]
-  y_tr <- as.vector(Yin)
-  # Posterior samples holder
-  tilde_eta <- matrix(NA, ncol = total_samples, nrow = ncol(design_mat))
-  sig_xi_inv <- rep(NA, total_samples)
-  sep_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
-  
-  # Bayesian - separate fitting model ---------------------------------------------------------------------------
-  for (idx in 1:total_samples) {
-    print(idx)
-    for (i in 1:nrow(schoolsM)) {
-      # curr_idx_h <- seq(from = i, to = i + nrow(schoolsM)*(nrow(H$train_h)/nrow(schoolsM) - 1), by = nrow(schoolsM))
-      curr_idx_h <- i + (0:(years - 2))*nrow(schoolsM)
-      curr_H <- H$train_h[curr_idx_h,]
-      curr_H_sep <- rbind(curr_H,alpha^{-1/2}*diag(rep(sig_eta_inv,nh)))
-      curr_y <- Yin[i,1:(years-1)]
-      curr_alpha <- matrix(c(curr_y+eps, rep(alpha,nh)), ncol = 1)
-      curr_kappa <- matrix(c(rep(1, ncol(Yin)-1), rep(alpha, nh)), ncol = 1)
-      curr_pos_eta <- rCMLG(H = curr_H_sep, alpha = curr_alpha, kappa = curr_kappa)
-      sep_eta_pred[i,idx] <- exp(H$pred_h[i,] %*% curr_pos_eta)
-    }
-  }
-  pred_all_sep[years-min(years_to_pred)+1,,] <- sep_eta_pred
-  for(j in 1:reps){
-    H <-  ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
-    fit_fesn_ens <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)
-    pred_all_ensemble_esn[years - min(years_to_pred) + 1,,j] <- predict(fit_fesn_ens, newx = H$pred_h, type = "response")
-  }
+all_mse <- matrix(NA, nrow = 6, ncol = 5)
+all_lmse <- matrix(NA, nrow = 6, ncol = 5)
+for (i in 1:5) {
+  curr_true <- schoolsM[,45+i]
+  all_mse[1,i] <- var(curr_true)
+  all_mse[2,i] <- mean((ingarch_mean[i,] - curr_true)^2)  
+  all_mse[3,i] <- mean((single_esn_mean[i,] - curr_true)^2)
+  all_mse[4,i] <- mean((ensemble_esn_mean[i,] - curr_true)^2)
+  all_mse[5,i] <- mean((sep_mean[i,] - curr_true)^2)
+  all_mse[6,i] <- mean((int_mean[i,] - curr_true)^2)
+  lg_curr_true <- log(curr_true+1)
+  all_lmse[2,i] <- mean((log(ingarch_mean[i,]+1) - lg_curr_true)^2)  
+  all_lmse[3,i] <- mean((log(single_esn_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[4,i] <- mean((log(ensemble_esn_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[5,i] <- mean((log(sep_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[6,i] <- mean((log(int_mean[i,]+1) - lg_curr_true)^2)
 }

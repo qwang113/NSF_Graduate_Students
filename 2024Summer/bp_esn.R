@@ -14,7 +14,7 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 }
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi/10000)^2) + ns/2 * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi/10000)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
@@ -51,7 +51,6 @@ years_to_pred <- 46:50
 #Hyper-parameters
 sig_eta_inv = 100
 eps = 1 # Avoid underflow, avoid log(0)
-
 
 
 # ESN Parameters
@@ -162,13 +161,6 @@ for (years in years_to_pred) {
   
   fit_fesn <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)
   pred_all_single_esn[,years - min(years_to_pred) + 1] <- predict(fit_fesn, newx = H$pred_h, type = "response")
-  # Frequentist - Integrated Model (Ensemble)----------------------------------------------------------------------------------------  
-  
-  for(j in 1:reps){
-  H <-  ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
-  fit_fesn_ens <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)
-  pred_all_ensemble_esn[years - min(years_to_pred) + 1,,j] <- predict(fit_fesn_ens, newx = H$pred_h, type = "response")
-}
   
   # Frequentist - INGARCH(1,1) ----------------------------------------------------------------------------------------  
   for (k in 1:nrow(schoolsM)) {
@@ -176,8 +168,14 @@ for (years in years_to_pred) {
     pred_all_ING[1,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$pred
     pred_all_ING[2,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[1]
     pred_all_ING[3,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[2]
-    }
-
+  }
+  
+  # Frequentist - Integrated Model (Ensemble)----------------------------------------------------------------------------------------  
+  for(j in 1:reps){
+    H <-  ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
+    fit_fesn_ens <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)
+    pred_all_ensemble_esn[years - min(years_to_pred) + 1,,j] <- predict(fit_fesn_ens, newx = H$pred_h, type = "response")
+  }
 }
 
 saveRDS(pred_all_int, file="pred_all_int.Rda")

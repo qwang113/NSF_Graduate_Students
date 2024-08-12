@@ -19,13 +19,45 @@ int_low <- apply(int_pred, c(1,2), quantile, alpha/2)
 sep_up <- apply(sep_pred, c(1,2), quantile, 1-alpha/2)
 sep_low <- apply(sep_pred, c(1,2), quantile, alpha/2)
 
-ingarch_up <- ingarch_pred[2,,]
-ingarch_low <- ingarch_pred[3,,]
+ingarch_up <- ingarch_pred[3,,]
+ingarch_low <- ingarch_pred[2,,]
 
 ensemble_up <- apply(ensemble_esn_pred, c(1,2), quantile, 1-alpha/2)
 ensemble_low <- apply(ensemble_esn_pred, c(1,2), quantile, alpha/2)
+
 all_mse <- matrix(NA, nrow = 6, ncol = 5)
 all_lmse <- matrix(NA, nrow = 6, ncol = 5)
+IS <- matrix(NA, nrow = 4, ncol = 5)
+ICR <- matrix(NA, nrow = 4, ncol = 5)
+
+int_score <- function(l,u,true_x,alpha = 0.05){
+  out_1 <- u-l
+  out_2 <- 2/alpha * (l-true_x) * ifelse(true_x < l, 1, 0)
+  out_3 <- 2/alpha * (true_x-u) * ifelse(true_x > u, 1, 0)
+  return(out_1 + out_2 + out_3)
+}
+
+all_interval_score <- function(prediction_sample, alpha = 0.05, true_x){
+  num_all <- length(true_x)
+  pb <- txtProgressBar(min = 0,      # Minimum value of the progress bar
+                       max = num_all, # Maximum value of the progress bar
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,   # Progress bar width. Defaults to getOption("width")
+                       char = "=")   # Character used to cRete the bar
+  
+  
+  all_score <- rep(NA, length(true_x))
+  for (int_score_idx in 1:length(true_x)) {
+    setTxtProgressBar(pb, int_score_idx)
+    l <- quantile(prediction_sample[int_score_idx,], alpha/2)
+    u <- quantile(prediction_sample[int_score_idx,], 1-alpha/2)
+    all_score[int_score_idx] <- int_score(l = l, u = u, true_x = true_x[int_score_idx], alpha = alpha)
+  }
+  return(all_score)
+}
+
+
+
 for (i in 1:5) {
   curr_true <- schoolsM[,45+i]
   all_mse[1,i] <- var(curr_true)
@@ -34,10 +66,24 @@ for (i in 1:5) {
   all_mse[4,i] <- mean((ensemble_esn_mean[i,] - curr_true)^2)
   all_mse[5,i] <- mean((sep_mean[i,] - curr_true)^2)
   all_mse[6,i] <- mean((int_mean[i,] - curr_true)^2)
+  
   lg_curr_true <- log(curr_true+1)
+  all_lmse[1,i] <- var(lg_curr_true)
   all_lmse[2,i] <- mean((log(ingarch_mean[i,]+1) - lg_curr_true)^2)  
   all_lmse[3,i] <- mean((log(single_esn_mean[i,]+1) - lg_curr_true)^2)
   all_lmse[4,i] <- mean((log(ensemble_esn_mean[i,]+1) - lg_curr_true)^2)
   all_lmse[5,i] <- mean((log(sep_mean[i,]+1) - lg_curr_true)^2)
   all_lmse[6,i] <- mean((log(int_mean[i,]+1) - lg_curr_true)^2)
+  
+  IS[1,i] <- mean(int_score(l = ingarch_low[i,], u = ingarch_up[i,], true_x = curr_true, alpha = alpha))
+  IS[2,i] <- mean(all_interval_score(prediction_sample = ensemble_esn_pred[i,,], alpha = alpha, true_x = curr_true))
+  IS[3,i] <- mean(all_interval_score(prediction_sample = sep_pred[i,,], alpha = alpha, true_x = curr_true))
+  IS[4,i] <- mean(all_interval_score(prediction_sample = int_pred[i,,], alpha = alpha, true_x = curr_true))
+  
+  ICR[1,i] <- sum( curr_true>ingarch_low[i,] & curr_true<ingarch_up[i,] )/length(curr_true)
+  ICR[2,i] <- sum( curr_true>ensemble_low[i,] & curr_true<ensemble_up[i,] )/length(curr_true)
+  ICR[3,i] <- sum( curr_true>sep_low[i,] & curr_true<sep_up[i,] )/length(curr_true)
+  ICR[4,i] <- sum( curr_true>int_low[i,] & curr_true<int_up[i,] )/length(curr_true)
 }
+
+

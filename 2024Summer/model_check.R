@@ -86,4 +86,13 @@ for (i in 1:5) {
   ICR[4,i] <- sum( curr_true>int_low[i,] & curr_true<int_up[i,] )/length(curr_true)
 }
 
+rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN")
+rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN")
+rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN")
+rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN")
+colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- 2017:2021
 
+knitr::kable(all_mse, format = "latex", align = 'c',digits = 0)
+knitr::kable(all_lmse, format = "latex", align = 'c',digits = 3)
+knitr::kable(IS, format = "latex", align = 'c', digits = 0)
+knitr::kable(ICR, format = "latex", align = 'c', digits = 3)

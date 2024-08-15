@@ -18,6 +18,15 @@ pos_sig_xi <- function(sig_xi, xi, alpha){
   return(loglike)
 }
 
+pos_eta_xi <- function(sig_eta, eta_trunc, alpha){
+  n_eta <- length(eta_trunc)
+  loglike <- -log(1+(sig_eta/10000)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc)- 
+    alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
+  return(loglike)
+}
+
+
+
 ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
   ## Fit
   p <- ncol(Xin)
@@ -66,6 +75,7 @@ lambda <- 0.01
 # Initialization
 pred_all_int <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
 pred_all_sep <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
+pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
 pred_all_single_esn <- matrix(NA, nrow = nrow(schoolsM), ncol = length(years_to_pred))
 pred_all_ensemble_esn <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),reps))
 
@@ -93,12 +103,14 @@ for (years in years_to_pred) {
   nh <- dim(H$train_h)[2]
   ns <- dim(state_idx)[2]
   y_tr <- as.vector(Yin)
-  # Posterior samples holder
+  
+  # Posterior sample boxes
   tilde_eta <- matrix(NA, ncol = total_samples, nrow = ncol(design_mat))
   sig_xi_inv <- rep(NA, total_samples)
   sep_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
   
   # Bayesian - separate fitting model ---------------------------------------------------------------------------
+  sig_eta_inv = 100
   for (idx in 1:total_samples) {
     print(idx)
     for (i in 1:nrow(schoolsM)) {
@@ -110,13 +122,13 @@ for (years in years_to_pred) {
       curr_alpha <- matrix(c(curr_y+eps, rep(alpha,nh)), ncol = 1)
       curr_kappa <- matrix(c(rep(1, ncol(Yin)-1), rep(alpha, nh)), ncol = 1)
       curr_pos_eta <- rCMLG(H = curr_H_sep, alpha = curr_alpha, kappa = curr_kappa)
-      sep_eta_pred[i,idx] <- exp(H$pred_h[i,] %*% curr_pos_eta)
+      sep_eta_pred[i,idx] <- rpois(1,exp(H$pred_h[i,] %*% curr_pos_eta))
     }
   }
   
   pred_all_sep[years-min(years_to_pred)+1,,] <- sep_eta_pred
   # Bayesian - Integrated random Effect Model ----------------------------------------------------------------------------------------  
-  
+  sig_eta_inv = 100
   # Initialization
   curr_eta <- matrix(0,nrow = dim(tilde_eta)[1], ncol = 1)
   curr_sig_xi_inv <- 0.1
@@ -152,11 +164,70 @@ for (years in years_to_pred) {
       tilde_eta[,save_idx] <- curr_eta
       sig_xi_inv[save_idx] <- curr_sig_xi_inv
       pred_mat <- cbind(H$pred_h,state_idx)
-      int_eta_pred[,save_idx] <- exp(pred_mat%*%curr_eta)
+      int_eta_pred[,save_idx] <- rpois (1,exp(pred_mat%*%curr_eta))
       pred_all_int[years-min(years_to_pred)+1,,] <- int_eta_pred
     } 
     print(curr_idx)
   }
+  
+  # Bayesian - Random Slope Model ----------------------------------------------------------------------------------------  
+  
+  pb <- txtProgressBar(min = 0, max = nrow(H$train_h), style = 3)
+  # Initialize the transformed matrix
+  transformed_H <- matrix(NA, nrow = nrow(H$train_h), ncol = nh * ns)
+  # Loop through each row and update the progress bar
+  for (j in 1:nrow(transformed_H)) {
+    transformed_H[j, ] <- as.vector(outer(H$train_h[j, ], repeated_state[j, ], "*"))
+    setTxtProgressBar(pb, j)  # Update the progress bar
+  }
+  design_here <- cbind(transformed_H, repeated_state)
+  
+  # Initialization
+  tilde_eta_rs <- matrix(NA, ncol = total_samples, nrow = ncol(design_here))
+  sig_xi_inv <- rep(NA, total_samples)
+  sig_eta_inv <- rep(NA, total_samples)
+  curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
+  curr_sig_xi_inv <- 0.1
+  curr_sig_eta_inv <- 0.1
+  curr_idx <- 1
+  save_idx <- 0
+  int_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
+  
+  while (save_idx < total_samples) {
+    # Define current H_eta
+    curr_H_eta <- rbind(design_here, alpha^{-1/2}*diag(c(rep(curr_sig_eta_inv,nh*ns), rep(curr_sig_xi_inv,ns))))
+    # Define current alpha_eta
+    curr_alpha_eta <- matrix(c(y_tr+eps,rep(alpha,(nh+1)*ns)))
+    # Define current kappa_eta
+    curr_kappa_eta <- c(rep(1,nrow(design_here)), rep(alpha,(nh+1)*ns))
+    # Sample tilde eta
+    curr_eta <- rCMLG(H = curr_H_eta, alpha = curr_alpha_eta, kappa = curr_kappa_eta)
+    
+    # Propose a sigma_xi
+    d <- min(0.5, curr_sig_xi_inv)
+    temp_sig_xi_inv <- runif(1, min = curr_sig_xi_inv-d, max = curr_sig_xi_inv+d)
+    # Metropolis-hastings
+    prev_loglike <- pos_sig_xi(sig_xi =  1/curr_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
+    curr_loglike <- pos_sig_xi(sig_xi = 1/temp_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
+    p_trans <- exp(curr_loglike - prev_loglike)
+    l <- runif(1)
+    if(p_trans > l){
+      curr_sig_xi_inv <- temp_sig_xi_inv
+    }
+    curr_idx <- curr_idx + 1 
+    # Save current values after burn and thin
+    if( (curr_idx > burn) & ((curr_idx - burn)%%thin == 0) ){
+      save_idx <- save_idx + 1
+      tilde_eta[,save_idx] <- curr_eta
+      sig_xi_inv[save_idx] <- curr_sig_xi_inv
+      pred_mat <- cbind(H$pred_h,state_idx)
+      int_eta_pred[,save_idx] <- rpois (1,exp(pred_mat%*%curr_eta))
+      pred_all_int[years-min(years_to_pred)+1,,] <- int_eta_pred
+    } 
+    print(curr_idx)
+  }
+  
+  
   # Frequentist - Integrated Model (Single)----------------------------------------------------------------------------------------  
   
   fit_fesn <- glmnet(x = H$train_h, y = y_tr, family = "poisson", alpha = 1, lambda = lambda)

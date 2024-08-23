@@ -1,5 +1,6 @@
 rm(list = ls())
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
+schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 schoolsM <- as.matrix(schools[,10:59])
 
 int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")
@@ -119,3 +120,22 @@ knitr::kable(all_mse, format = "latex", align = 'c',digits = 0)
 knitr::kable(all_lmse, format = "latex", align = 'c',digits = 3)
 knitr::kable(IS, format = "latex", align = 'c', digits = 0)
 knitr::kable(ICR, format = "latex", align = 'c', digits = 3)
+
+# - Random Slope Checking
+true <- schoolsM[,45+2]
+pred <- randsl_mean[2,]
+boxplot((true-pred)^2)
+special_order <- order((true-pred)^2, decreasing = TRUE)
+
+i = special_order[3]
+ggplot() +
+  geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+  geom_line(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") +
+  labs(title = paste(schools$state[i],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[i])])) +
+  geom_vline(xintercept = 2018)
+
+
+
+
+
+

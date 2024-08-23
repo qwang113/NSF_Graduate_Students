@@ -3,7 +3,7 @@ library(tidyverse)
 library(glmnet)
 library(tscount)
 library(Matrix)
-
+set.seed(0)
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schoolsM <- as.matrix(schools[,10:59])
 

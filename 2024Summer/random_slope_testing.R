@@ -185,3 +185,4 @@ for (years in years_to_pred) {
   
 }
 
+saveRDS(pred_all_randslp, file="pred_all_randsl.Rda")

@@ -4,7 +4,7 @@ schoolsM <- as.matrix(schools[,10:59])
 
 int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")
 sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")
-randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randsl.Rda")
+randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randslp.Rda")
 
 ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")
 single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")

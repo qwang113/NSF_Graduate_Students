@@ -3,8 +3,10 @@ library(Matrix)
 library(tidyverse)
 library(glmnet)
 library(tscount)
+library(ggplot2)
 set.seed(0)
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
+# %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
 
 rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
@@ -17,13 +19,13 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi/10000)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi/100)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
 pos_sig_eta <- function(sig_eta, eta_trunc, alpha){
   n_eta <- length(eta_trunc)
-  loglike <- -log(1+(sig_eta/10000)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc)- 
+  loglike <- -log(1+(sig_eta/100)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc)- 
     alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
   return(loglike)
 }
@@ -54,14 +56,14 @@ state_idx <- model.matrix( ~ factor(state) -1, data = schools)
 
 
 # MCMC parameters
-total_samples <- 100
-burn = 500
-thin = 2
+total_samples <- 2000
+burn = 0
+thin = 1
 alpha = 1000
-years_to_pred <- 46:50
+years_to_pred <- 46
 
 #Hyper-parameters
-sig_eta_inv = 100
+# sig_eta_inv = 100
 eps = 1 # Avoid underflow, avoid log(0)
 
 
@@ -108,6 +110,7 @@ for (years in years_to_pred) {
   # Initialize the transformed matrix
   transformed_H <- matrix(NA, nrow = nrow(H$train_h), ncol = nh * ns)
   # Loop through each row and update the progress bar
+  print("Transforming H to a huge matrix")
   for (j in 1:nrow(transformed_H)) {
     transformed_H[j, ] <- as.vector(outer(H$train_h[j, ], repeated_state[j, ], "*"))
     setTxtProgressBar(pb, j)  # Update the progress bar
@@ -136,9 +139,9 @@ for (years in years_to_pred) {
     curr_eta <- rCMLG(H = curr_H_eta, alpha = curr_alpha_eta, kappa = curr_kappa_eta)
     
     # Propose a sigma_xi
-    # d <- min(0.5, curr_sig_xi_inv)
-    # temp_sig_xi_inv <- runif(1, min = curr_sig_xi_inv-d, max = curr_sig_xi_inv+d)
-    temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 1))
+    d <- min(0.5, 1/curr_sig_xi_inv)
+    temp_sig_xi_inv <- 1/runif(1, min = 1/curr_sig_xi_inv-d, max = 1/curr_sig_xi_inv+d)
+    # temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 1))
     # Metropolis-hastings
     prev_loglike <- pos_sig_xi(sig_xi =  1/curr_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
     curr_loglike <- pos_sig_xi(sig_xi = 1/temp_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
@@ -149,8 +152,9 @@ for (years in years_to_pred) {
     }
     
     # Propose a sigma_eta
-    d <- min(0.5, curr_sig_eta_inv)
-    temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 1))
+    d <- min(0.5, 1/curr_sig_eta_inv)
+    temp_sig_eta_inv <- 1/runif(1, min = 1/curr_sig_eta_inv-d, max = 1/curr_sig_eta_inv+d)
+    # temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 1))
     # Metropolis-hastings
     prev_loglike <- pos_sig_eta(sig_eta =  1/curr_sig_eta_inv, eta_trunc = curr_eta[1:(ns*nh)], alpha = alpha)
     curr_loglike <- pos_sig_eta(sig_eta = 1/temp_sig_eta_inv, eta_trunc = curr_eta[1:(ns*nh)], alpha = alpha)
@@ -179,10 +183,31 @@ for (years in years_to_pred) {
 
       random_slope_pred[,save_idx] <- rpois(nrow(schoolsM),exp(pred_here%*%curr_eta))
       pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
+      # Make a plot of current mcmc steps
+      # p1 <- ggplot() +
+      #   geom_line(aes(x = 1:save_idx, y = sig_xi_inv[1:save_idx]))
+      # p2 <- ggplot() +
+      #   geom_line(aes(x = 1:save_idx), y = sig_eta_inv[1:save_idx])
+      # p3 <- ggplot() +
+      #   geom_line(aes(x = 1:save_idx, y = 1/sig_xi_inv[1:save_idx]))
+      # p4 <- ggplot() +
+      #   geom_line(aes(x = 1:save_idx), y = 1/sig_eta_inv[1:save_idx])
+      # 
+      # cowplot::plot_grid(p1,p3,p2,p4, nrow = 4) 
+      par(mfrow = c(4,1))
+      plot(x = 1:save_idx, y = sig_xi_inv[1:save_idx], type = 'l', main = "sig xi inv")
+      plot(x = 1:save_idx, y = 1/sig_xi_inv[1:save_idx], type = 'l', main = "sig xi")
+      plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv")
+      plot(x = 1:save_idx, y = 1/sig_eta_inv[1:save_idx], type = 'l', main = "sig eta")
     } 
     print(curr_idx)
+   
   }
   
+  
 }
+pred <- apply(pred_all_randslp, c(1,2), mean)
+true_value <- schoolsM[,46]
+mse <- mean((pred-true_value)^2)
 
 saveRDS(pred_all_randslp, file="pred_all_randsl.Rda")

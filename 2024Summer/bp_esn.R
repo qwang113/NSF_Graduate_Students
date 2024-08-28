@@ -17,19 +17,19 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi/10000)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi/100)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
 pos_sig_eta <- function(sig_eta, eta_trunc, alpha){
   n_eta <- length(eta_trunc)
-  loglike <- -log(1+(sig_eta/10000)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc)- 
+  loglike <- -log(1+(sig_eta/100)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc)- 
     alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
   return(loglike)
 }
 
 
-ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
+ESN_expansion <- function(Xin, Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
   ## Fit
   p <- ncol(Xin)
   W <- matrix(runif(nh*nh, min=-aw, max=aw), nrow=nh) * matrix(rbinom(nh*nh,1,1-pw), nrow=nh)
@@ -51,7 +51,6 @@ ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.
 
 state_idx <- model.matrix( ~ factor(state) -1, data = schools)
 
-
 # MCMC parameters
 total_samples <- 100
 burn = 300
@@ -60,7 +59,7 @@ alpha = 1000
 years_to_pred <- 46:50
 
 #Hyper-parameters
-sig_eta_inv = 100
+sig_eta_inv = 0.1
 eps = 1 # Avoid underflow, avoid log(0)
 
 
@@ -113,7 +112,6 @@ for (years in years_to_pred) {
   sep_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
   
   # Bayesian - separate fitting model ---------------------------------------------------------------------------
-  sig_eta_inv = 100
   for (idx in 1:total_samples) {
     print(idx)
     for (i in 1:nrow(schoolsM)) {
@@ -131,7 +129,7 @@ for (years in years_to_pred) {
   
   pred_all_sep[years-min(years_to_pred)+1,,] <- sep_eta_pred
   # Bayesian - Integrated random Effect Model ----------------------------------------------------------------------------------------  
-  sig_eta_inv = 100
+  sig_eta_inv = 0.1
   # Initialization
   curr_eta <- matrix(0,nrow = dim(tilde_eta)[1], ncol = 1)
   curr_sig_xi_inv <- 0.1

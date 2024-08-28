@@ -25,7 +25,6 @@ Pois_ESN <- function(Xin, Yin, Xpred, nh=120, lambda=0.1, nu=0.35, rv=0.01, aw=0
     }
     Hnew <- H
     
-    
     Hpred <- matrix(NA, nrow=nrow(Xpred), ncol=nh)
     tmp <- W%*%H[nrow(H), ] + U%*%Xpred[1,]
     Hpred[1,] <- tanh(tmp)

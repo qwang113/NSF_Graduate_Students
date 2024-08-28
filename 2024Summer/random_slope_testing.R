@@ -9,15 +9,23 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
 
+rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
+  ## This function will simulate from the cMLG distribution
+  m <- length(kappa)
+  w <- log(rgamma(m, shape=alpha, rate=kappa))
+  sparse_H <- Matrix(H, sparse = TRUE)
+  return(as.numeric(solve( t(sparse_H)%*%sparse_H )%*%t(sparse_H)%*%w))
+}
+
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi/100)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi/1000)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
 pos_sig_eta <- function(sig_eta, eta_trunc, alpha){
   n_eta <- length(eta_trunc)
-  loglike <- -log(1+(sig_eta/100)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc)- 
+  loglike <- -log(1+(sig_eta/1000)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc) - 
     alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
   return(loglike)
 }
@@ -35,11 +43,11 @@ ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.
   tmp <- tanh(Xin %*% t(U))
   H <- tmp
   for(i in 2:ncol(Yin)){
-    tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix( log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
+    tmp_new <- tanh(tmp%*%W + matrix( log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new
     H <- rbind(H, tmp_new)
   }
-  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + Xin%*%t(U) + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
+  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W  + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
   return(list("train_h" = H, "pred_h" = Hpred))
 }
 
@@ -109,8 +117,8 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
   design_here <- cbind(transformed_H, repeated_state)
   # Block matrix inversion, save computation
   sparse_design <- Matrix(design_here, sparse = TRUE)
-  A <- crossprod(sparse_design)
-  A_inv <- solve(A)
+  # A <- crossprod(sparse_design)
+  # A_inv <- solve(A)
   # Initialization
   tilde_eta_rs <- matrix(NA, ncol = total_samples, nrow = ncol(design_here))
   sig_xi_inv <- rep(NA, total_samples)
@@ -131,18 +139,17 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
     # Define current kappa_eta
     curr_kappa_eta <- c(rep(1,nrow(design_here)), rep(alpha,(nh+1)*ns))
 
-    B <- Matrix(diag(c(rep(curr_sig_eta_inv^2, nh*ns), rep(curr_sig_xi_inv^2, ns))),sparse = TRUE)
-    # Sample tilde eta
-    m <- length(curr_kappa_eta)
-    w <- Matrix(log(rgamma(m, shape=curr_alpha_eta, rate=curr_kappa_eta)))
-    S_inv <- A_inv - A_inv %*% solve(solve(B) + A_inv) %*% A_inv
-    curr_eta <- S_inv %*% t(curr_H_eta) %*% w
+    # B <- 1/alpha * Matrix(diag(c(rep(curr_sig_eta_inv^2, nh*ns), rep(curr_sig_xi_inv^2, ns))),sparse = TRUE)
+    # # Sample tilde eta
+    # m <- length(curr_kappa_eta)
+    # w <- Matrix(log(rgamma(m, shape=curr_alpha_eta, rate=curr_kappa_eta)))
+    # S_inv <- A_inv - A_inv %*% solve(solve(B) + A_inv) %*% A_inv
+    curr_eta <- rCMLG(H = curr_H_eta, alpha = curr_alpha_eta, kappa = curr_kappa_eta)
     
-    # system.time(rCMLG_1(H = curr_H_eta, alpha = curr_alpha_eta, kappa = curr_kappa_eta))
     # curr_eta <- rCMLG(H = curr_H_eta, alpha = curr_alpha_eta, kappa = curr_kappa_eta)
     
     # Propose a sigma_xi
-    d <- min(0.5, 1/curr_sig_xi_inv)
+    d <- min(5, 1/curr_sig_xi_inv)
     temp_sig_xi_inv <- 1/runif(1, min = 1/curr_sig_xi_inv-d, max = 1/curr_sig_xi_inv+d)
     # temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 1))
     # Metropolis-hastings
@@ -155,7 +162,7 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
     }
     
     # Propose a sigma_eta
-    d <- min(0.5, 1/curr_sig_eta_inv)
+    d <- min(5, 1/curr_sig_eta_inv)
     temp_sig_eta_inv <- 1/runif(1, min = 1/curr_sig_eta_inv-d, max = 1/curr_sig_eta_inv+d)
     # temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 1))
     # Metropolis-hastings
@@ -185,31 +192,23 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
       pred_here <- cbind(transformed_H_pred, state_idx)
 
       random_slope_pred[,save_idx] <- rpois(nrow(schoolsM),as.numeric(exp(pred_here%*%curr_eta)))
-      pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
-      # Make a plot of current mcmc steps
-      # p1 <- ggplot() +
-      #   geom_line(aes(x = 1:save_idx, y = sig_xi_inv[1:save_idx]))
-      # p2 <- ggplot() +
-      #   geom_line(aes(x = 1:save_idx), y = sig_eta_inv[1:save_idx])
-      # p3 <- ggplot() +
-      #   geom_line(aes(x = 1:save_idx, y = 1/sig_xi_inv[1:save_idx]))
-      # p4 <- ggplot() +
-      #   geom_line(aes(x = 1:save_idx), y = 1/sig_eta_inv[1:save_idx])
-      # 
-      # cowplot::plot_grid(p1,p3,p2,p4, nrow = 4) 
-      par(mfrow = c(4,1))
-      plot(x = 1:save_idx, y = sig_xi_inv[1:save_idx], type = 'l', main = "sig xi inv")
-      plot(x = 1:save_idx, y = 1/sig_xi_inv[1:save_idx], type = 'l', main = "sig xi")
-      plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv")
-      plot(x = 1:save_idx, y = 1/sig_eta_inv[1:save_idx], type = 'l', main = "sig eta")
+      # pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
+    
+      par(mfrow = c(4,1), mar = c(2,2,2,2))
+      plot(x = 1:save_idx, y = sig_xi_inv[1:save_idx], type = 'l', main = "sig xi inv", xlab = "")
+      plot(x = 1:save_idx, y = 1/sig_xi_inv[1:save_idx], type = 'l', main = "sig xi", xlab = "")
+      plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv", xlab = "")
+      plot(x = 1:save_idx, y = 1/sig_eta_inv[1:save_idx], type = 'l', main = "sig eta", xlab = "")
     } 
-    print(curr_idx)
-   
+    pred <- apply(random_slope_pred,1,mean, na.rm = TRUE)
+    true_value <- schoolsM[,46]
+    mse <- mean((pred-true_value)^2)
+    print(paste(curr_idx,mse))
   }
+  pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
   
   
-
-pred <- apply(pred_all_randslp, c(1,2), mean)
+pred <- apply(pred_all_randslp, c(1,2), mean, na.rm = TRUE)
 true_value <- schoolsM[,46]
 mse <- mean((pred-true_value)^2)
 

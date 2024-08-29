@@ -19,13 +19,13 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi/1000)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
 pos_sig_eta <- function(sig_eta, eta_trunc, alpha){
   n_eta <- length(eta_trunc)
-  loglike <- -log(1+(sig_eta/1000)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc) - 
+  loglike <- -log(1+(sig_eta)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc) - 
     alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
   return(loglike)
 }
@@ -60,8 +60,8 @@ total_samples <- 2000
 burn = 0
 thin = 1
 alpha = 1000
-years_to_pred <- 46
-years = years_to_pred
+years_to_pred <- 46:50
+# years = years_to_pred
 #Hyper-parameters
 # sig_eta_inv = 100
 eps = 1 # Avoid underflow, avoid log(0)
@@ -79,6 +79,7 @@ ns = length(unique(schools$state))
 
 pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
 
+for(years in years_to_pred){
 
   # Set up hypeparameters for ESN
   Xin <- Xpred <- model.matrix( ~ factor(state) -1, data = schools)
@@ -125,7 +126,7 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
   sig_eta_inv <- rep(NA, total_samples)
   curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
   curr_sig_xi_inv <- 0.1
-  curr_sig_eta_inv <- 0.1
+  curr_sig_eta_inv <- 0.01
   curr_idx <- 1
   save_idx <- 0
   
@@ -149,7 +150,7 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
     # curr_eta <- rCMLG(H = curr_H_eta, alpha = curr_alpha_eta, kappa = curr_kappa_eta)
     
     # Propose a sigma_xi
-    d <- min(5, 1/curr_sig_xi_inv)
+    d <- min(0.5, 1/curr_sig_xi_inv)
     temp_sig_xi_inv <- 1/runif(1, min = 1/curr_sig_xi_inv-d, max = 1/curr_sig_xi_inv+d)
     # temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 1))
     # Metropolis-hastings
@@ -162,7 +163,7 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
     }
     
     # Propose a sigma_eta
-    d <- min(5, 1/curr_sig_eta_inv)
+    d <- min(1, 1/curr_sig_eta_inv)
     temp_sig_eta_inv <- 1/runif(1, min = 1/curr_sig_eta_inv-d, max = 1/curr_sig_eta_inv+d)
     # temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 1))
     # Metropolis-hastings
@@ -206,7 +207,7 @@ pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),tota
     print(paste(curr_idx,mse))
   }
   pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
-  
+}
   
 pred <- apply(pred_all_randslp, c(1,2), mean, na.rm = TRUE)
 true_value <- schoolsM[,46]

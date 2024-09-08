@@ -3,13 +3,13 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 schoolsM <- as.matrix(schools[,10:59])
 
-int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")
-sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")
-randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randslp.Rda")
+int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")[-5,,]
+sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")[-5,,]
+randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randslp.Rda")[-5,,]
 
-ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")
-single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")
-ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")
+ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")[-5,,]
+single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")[,-5]
+ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")[-5,,]
 
 
 int_mean <- apply(int_pred, c(1,2), mean)
@@ -69,7 +69,7 @@ all_interval_score <- function(prediction_sample, alpha = 0.05, true_x){
 
 
 
-for (i in 1:5) {
+for (i in 1:4) {
   curr_true <- schoolsM[,45+i]
   all_mse[1,i] <- var(curr_true)
   all_mse[2,i] <- mean((ingarch_mean[i,] - curr_true)^2)  
@@ -136,6 +136,13 @@ ggplot() +
 
 
 
-
+# 2017         2018         2019         2020 2021 5 Year Average
+# Intercept                    9505.57 9.177750e+03 9.429050e+03 6.264150e+03   NA             NA
+# INGARCH(1,1)                 2101.20 8.267000e+02 8.374700e+02 1.110530e+03   NA             NA
+# Single ESN                   2619.77 3.235700e+02 5.867600e+02 2.421310e+03   NA             NA
+# Ensemble ESN                 2426.54 3.412800e+02 5.944800e+02 1.769330e+03   NA             NA
+# Separate Bayesian ESN     1395692.71 1.826928e+26 3.611812e+84 1.452277e+35   NA             NA
+# Integrated Bayesian ESN      3552.89 3.556800e+02 7.091100e+02 3.927300e+03   NA             NA
+# Random Slope Bayesian ESN     149.20 5.294086e+05 4.653600e+02 3.924200e+02   NA             NA
 
 

@@ -56,9 +56,9 @@ state_idx <- model.matrix( ~ factor(state) -1, data = schools)
 
 
 # MCMC parameters
-total_samples <- 2000
-burn = 0
-thin = 1
+total_samples <- 1000
+burn = 500
+thin = 2
 alpha = 1000
 years_to_pred <- 46:50
 # years = years_to_pred
@@ -212,5 +212,5 @@ for(years in years_to_pred){
 pred <- apply(pred_all_randslp, c(1,2), mean, na.rm = TRUE)
 true_value <- schoolsM[,46]
 mse <- mean((pred-true_value)^2)
-
+777
 saveRDS(pred_all_randslp, file="pred_all_randsl.Rda")

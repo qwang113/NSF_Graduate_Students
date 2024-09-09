@@ -212,5 +212,5 @@ for(years in years_to_pred){
 pred <- apply(pred_all_randslp, c(1,2), mean, na.rm = TRUE)
 true_value <- schoolsM[,46]
 mse <- mean((pred-true_value)^2)
-777
+
 saveRDS(pred_all_randslp, file="pred_all_randsl.Rda")

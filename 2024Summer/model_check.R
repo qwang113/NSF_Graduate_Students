@@ -122,28 +122,29 @@ knitr::kable(IS, format = "latex", align = 'c', digits = 0)
 knitr::kable(ICR, format = "latex", align = 'c', digits = 3)
 
 # - Random Slope Checking
-# true <- schoolsM[,45+2]
-# pred <- randsl_mean[2,]
-# boxplot((true-pred)^2)
-# special_order <- order((true-pred)^2, decreasing = TRUE)
-# 
-# for (i in special_order[1:10]) {
-#   p1 <- 
-#     ggplot() +
-#     geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
-#     geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") + 
-#     # geom_line(aes( x = 2017:2021, y = randsl_mean[,special_order[1]]), color = "blue") +
-#     labs(title = paste(schools$state[i],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[i])])) +
-#     geom_vline(xintercept = 2017)
-#   p2 <-  ggplot() +
-#     geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
-#     geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") + 
-#     geom_line(aes( x = 2017:2021, y = randsl_mean[,special_order[1]]), color = "blue")
-#   p_all <- cowplot::plot_grid(p1,p2,ncol = 1)
-#     ggsave(paste(i,".png",sep = ""), plot = p_all, width = 8, height = 6, dpi = 300)
-# }
+true <- schoolsM[,45+2]
+pred <- randsl_mean[2,]
+boxplot((true-pred)^2)
+special_order <- order((true-pred)^2, decreasing = TRUE)
 
+for (i in special_order[1:10]) {
+  p1 <-
+    ggplot() +
+    geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+    geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+    # geom_line(aes( x = 2017:2021, y = randsl_mean[,special_order[1]]), color = "blue") +
+    labs(title = paste(schools$state[i],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[i])])) +
+    geom_vline(xintercept = 2017)
+  p2 <-  ggplot() +
+    geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+    geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+    geom_line(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") +
+    geom_point(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") 
+  p_all <- cowplot::plot_grid(p1,p2,ncol = 1)
+    ggsave(paste(i,".png",sep = ""), plot = p_all, width = 8, height = 6, dpi = 300)
+}
 
+delete_idx <- c(627,639,1125,1655)
 
 # 2017         2018         2019         2020 2021 5 Year Average
 # Intercept                    9505.57 9.177750e+03 9.429050e+03 6.264150e+03   NA             NA

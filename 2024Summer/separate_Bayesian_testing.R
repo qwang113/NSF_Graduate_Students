@@ -97,7 +97,7 @@ for (years in years_to_pred) {
   
   # Bayesian - separate fitting model ---------------------------------------------------------------------------
   for (idx in 1:total_samples) {
-    print(idx)
+    print(paste(years,idx))
     for (i in 1:nrow(schoolsM)) {
       # curr_idx_h <- seq(from = i, to = i + nrow(schoolsM)*(nrow(H$train_h)/nrow(schoolsM) - 1), by = nrow(schoolsM))
       curr_idx_h <- i + (0:(years - 2))*nrow(schoolsM)
@@ -111,6 +111,7 @@ for (years in years_to_pred) {
     }
     print(mean((sep_eta_pred[,idx]-schoolsM[,years])^2))
   }
+  
   pred_all_sep[years-min(years_to_pred)+1,,] <- sep_eta_pred
 }
 

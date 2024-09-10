@@ -52,6 +52,7 @@ for (years in years_to_pred) {
   
   # Generate H
   
+  H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
   
   # Number of times to repeat
   n <- ncol(Yin)

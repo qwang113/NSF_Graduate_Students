@@ -17,7 +17,7 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi/100)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
@@ -53,7 +53,7 @@ thin = 2
 
 
 #Hyper-parameters
-sig_eta_inv = 0.01
+sig_eta_inv = 1
 eps = 1 # Avoid underflow, avoid log(0)
 
 # ESN Parameters
@@ -129,12 +129,13 @@ for (years in years_to_pred) {
       tilde_eta[,save_idx] <- curr_eta
       sig_xi_inv[save_idx] <- curr_sig_xi_inv
       pred_mat <- cbind(H$pred_h,state_idx)
-      int_eta_pred[,save_idx] <- rpois (nrow(schoolsM),exp(pred_mat%*%curr_eta))
-      print(mean((int_eta_pred[,save_idx] - schoolsM[,years])^2))
+      int_eta_pred[,save_idx] <- exp(pred_mat%*%curr_eta) 
+      # print(mean((int_eta_pred[,save_idx] - schoolsM[,years])^2))
       pred_all_int[years-min(years_to_pred)+1,,] <- int_eta_pred
       plot(sig_xi_inv[1:save_idx])
     } 
-    print(curr_idx)
+    print(paste(years,curr_idx))
+    print(mean((exp(cbind(H$pred_h,state_idx)%*%curr_eta) - schoolsM[,years])^2))
   }
 }
 

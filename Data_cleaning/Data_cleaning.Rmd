@@ -129,6 +129,10 @@ nsf_wide <- cbind(UNITID,stay_dat_wide_final)
 carnegie_2021 <- read.csv("D:/77/UCSC/study/Research/temp/NSF_dat/NSF_Carnegie/2021.csv", header = TRUE)[,c(1,4)]
 colnames(carnegie_2021)[1] <- "UNITID"
 nsf_wide_car <- merge(nsf_wide, carnegie_2021, by = "UNITID")
+delete_idx <- unique(c(266,250,262,483,1021,745,393,1543,1381,1305,1088,1727,363,1010,661,404,1233,
+                580,1438,627,639,1125,1655,267,318,404,39,69,129,359,702,649,1788,875,47,1438,244,487,
+                297,460,1568,228,1066))
+nsf_wide_car <- nsf_wide_car[-delete_idx,]
 ```
 
 
@@ -136,6 +140,7 @@ nsf_wide_car <- merge(nsf_wide, carnegie_2021, by = "UNITID")
 write.csv(as.data.frame(stay_dat_long_final), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_long.csv", row.names = FALSE)
 write.csv(as.data.frame(stay_dat_wide_final), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide.csv", row.names = FALSE)
 write.csv(as.data.frame(nsf_wide_car ), "D:/77/UCSC/study/Research/temp/NSF_dat/nsf_final_wide_car.csv", row.names = FALSE)
+# write.csv(as.data.frame(nsf_wide_car ), here::here("nsf_final_wide_car.csv"), row.names = FALSE)
 ```
 
 

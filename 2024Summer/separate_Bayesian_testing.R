@@ -15,18 +15,6 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
   return(as.numeric(solve( crossprod(sparse_H) )%*%t(sparse_H)%*%w))
 }
 
-pos_sig_xi <- function(sig_xi, xi, alpha){
-  ns <- length(xi)
-  loglike <- -log(1+(sig_xi/100)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
-  return(loglike)
-}
-
-pos_sig_eta <- function(sig_eta, eta_trunc, alpha){
-  n_eta <- length(eta_trunc)
-  loglike <- -log(1+(sig_eta/100)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc)- 
-    alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
-  return(loglike)
-}
 
 
 ESN_expansion <- function(Xin, Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
@@ -57,7 +45,7 @@ alpha = 1000
 years_to_pred <- 46:50
 
 #Hyper-parameters
-sig_eta_inv = 10
+sig_eta_inv = 1
 eps = 1 # Avoid underflow, avoid log(0)
 
 # ESN Parameters
@@ -107,7 +95,7 @@ for (years in years_to_pred) {
       curr_alpha <- matrix(c(curr_y+eps, rep(alpha,nh)), ncol = 1)
       curr_kappa <- matrix(c(rep(1, ncol(Yin)), rep(alpha, nh)), ncol = 1)
       curr_pos_eta <- rCMLG(H = curr_H_sep, alpha = curr_alpha, kappa = curr_kappa)
-      sep_eta_pred[i,idx] <- rpois(1,exp(H$pred_h[i,] %*% curr_pos_eta))
+      sep_eta_pred[i,idx] <- exp(H$pred_h[i,] %*% curr_pos_eta)
     }
     print(mean((sep_eta_pred[,idx]-schoolsM[,years])^2))
   }

@@ -122,12 +122,13 @@ knitr::kable(IS, format = "latex", align = 'c', digits = 0)
 knitr::kable(ICR, format = "latex", align = 'c', digits = 3)
 
 # - Random Slope Checking
-true <- schoolsM[,45+2]
-pred <- randsl_mean[2,]
+y = 5
+true <- schoolsM[,45+y]
+pred <- randsl_mean[y,]
 boxplot((true-pred)^2)
 special_order <- order((true-pred)^2, decreasing = TRUE)
 
-for (i in special_order[1:10]) {
+for (i in special_order[1:50]) {
   p1 <-
     ggplot() +
     geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
@@ -141,10 +142,12 @@ for (i in special_order[1:10]) {
     geom_line(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") +
     geom_point(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") 
   p_all <- cowplot::plot_grid(p1,p2,ncol = 1)
-    ggsave(paste(i,".png",sep = ""), plot = p_all, width = 8, height = 6, dpi = 300)
+    ggsave(paste("D:/77/Research/temp/special/",y,"_",i,".png",sep = ""), plot = p_all, width = 8, height = 6, dpi = 300,)
 }
 
-delete_idx <- c(627,639,1125,1655)
+delete_idx <- unique(c(266,250,262,483,1021,745,393,1543,1381,1305,1088,1727,363,1010,661,404,1233,
+                580,1438,627,639,1125,1655,267,318,404,39,69,129,359,702,649,1788,875,47,1438,244,487,297,460,
+                1568,228,1066))
 
 # 2017         2018         2019         2020 2021 5 Year Average
 # Intercept                    9505.57 9.177750e+03 9.429050e+03 6.264150e+03   NA             NA

@@ -19,13 +19,13 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi/100)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
 pos_sig_eta <- function(sig_eta, eta_trunc, alpha){
   n_eta <- length(eta_trunc)
-  loglike <- -log(1+(sig_eta)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc) - 
+  loglike <- -log(1+(sig_eta/100)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc) - 
     alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
   return(loglike)
 }
@@ -192,7 +192,7 @@ for(years in years_to_pred){
       }
       pred_here <- cbind(transformed_H_pred, state_idx)
 
-      random_slope_pred[,save_idx] <- rpois(nrow(schoolsM),as.numeric(exp(pred_here%*%curr_eta)))
+      random_slope_pred[,save_idx] <- as.numeric(exp(pred_here%*%curr_eta)) 
       # pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
     
       par(mfrow = c(4,1), mar = c(2,2,2,2))
@@ -201,16 +201,15 @@ for(years in years_to_pred){
       plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv", xlab = "")
       plot(x = 1:save_idx, y = 1/sig_eta_inv[1:save_idx], type = 'l', main = "sig eta", xlab = "")
     } 
-    pred <- apply(random_slope_pred,1,mean, na.rm = TRUE)
-    true_value <- schoolsM[,46]
+    pred <- random_slope_pred[,save_idx]
+    true_value <- schoolsM[,years]
     mse <- mean((pred-true_value)^2)
-    print(paste(curr_idx,mse))
+    print(paste(years,curr_idx,mse))
+    
   }
   pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
 }
   
-pred <- apply(pred_all_randslp, c(1,2), mean, na.rm = TRUE)
-true_value <- schoolsM[,46]
-mse <- mean((pred-true_value)^2)
+
 
 saveRDS(pred_all_randslp, file="pred_all_randsl.Rda")

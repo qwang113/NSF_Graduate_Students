@@ -3,13 +3,13 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 schoolsM <- as.matrix(schools[,10:59])
 
-int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")[-5,,]
-sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")[-5,,]
-randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randslp.Rda")[-5,,]
+int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")
+sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")
+randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randsl.Rda")
 
-ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")[-5,,]
-single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")[,-5]
-ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")[-5,,]
+ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")
+single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")
+ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")
 
 
 int_mean <- apply(int_pred, c(1,2), mean)
@@ -69,7 +69,7 @@ all_interval_score <- function(prediction_sample, alpha = 0.05, true_x){
 
 
 
-for (i in 1:4) {
+for (i in 1:5) {
   curr_true <- schoolsM[,45+i]
   all_mse[1,i] <- var(curr_true)
   all_mse[2,i] <- mean((ingarch_mean[i,] - curr_true)^2)  
@@ -127,12 +127,21 @@ pred <- randsl_mean[2,]
 boxplot((true-pred)^2)
 special_order <- order((true-pred)^2, decreasing = TRUE)
 
-i = special_order[3]
-ggplot() +
-  geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
-  geom_line(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") +
-  labs(title = paste(schools$state[i],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[i])])) +
-  geom_vline(xintercept = 2018)
+for (i in special_order[1:10]) {
+  p1 <- 
+    ggplot() +
+    geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+    geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") + 
+    # geom_line(aes( x = 2017:2021, y = randsl_mean[,special_order[1]]), color = "blue") +
+    labs(title = paste(schools$state[i],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[i])])) +
+    geom_vline(xintercept = 2017)
+  p2 <-  ggplot() +
+    geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+    geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") + 
+    geom_line(aes( x = 2017:2021, y = randsl_mean[,special_order[1]]), color = "blue")
+  p_all <- cowplot::plot_grid(p1,p2,ncol = 1)
+    ggsave(paste(i,".png",sep = ""), plot = p_all, width = 8, height = 6, dpi = 300)
+}
 
 
 
@@ -145,4 +154,6 @@ ggplot() +
 # Integrated Bayesian ESN      3552.89 3.556800e+02 7.091100e+02 3.927300e+03   NA             NA
 # Random Slope Bayesian ESN     149.20 5.294086e+05 4.653600e+02 3.924200e+02   NA             NA
 
+# Random slope model diagonistics
 
+mse_order_2018 <- order((apply(randsl_pred[2,,],1,mean) - schoolsM[,47])^2, decreasing = TRUE)

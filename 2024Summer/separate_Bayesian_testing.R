@@ -45,7 +45,7 @@ alpha = 1000
 years_to_pred <- 46:50
 
 #Hyper-parameters
-sig_eta_inv = 1
+sig_eta_inv = 10
 eps = 1 # Avoid underflow, avoid log(0)
 
 # ESN Parameters

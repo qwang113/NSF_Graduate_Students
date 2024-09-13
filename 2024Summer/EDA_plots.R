@@ -38,7 +38,7 @@ acf_to_df <- function(acf_object) {
     acf = acf_object$acf[,1,1]
   )
 }
-
+ 
 acf1_df <- acf_to_df(acf1)
 acf2_df <- acf_to_df(acf2)
 acf3_df <- acf_to_df(acf3)

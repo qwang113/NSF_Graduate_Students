@@ -122,7 +122,7 @@ knitr::kable(IS, format = "latex", align = 'c', digits = 0)
 knitr::kable(ICR, format = "latex", align = 'c', digits = 3)
 
 # - Random Slope Checking
-y = 5
+y = 1
 true <- schoolsM[,45+y]
 pred <- randsl_mean[y,]
 boxplot((true-pred)^2)

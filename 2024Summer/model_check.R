@@ -3,7 +3,7 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 schoolsM <- as.matrix(schools[,10:59])
 
-int_pred <- readRDS("D:/77/Research/temp/pred_all_int.Rda")
+int_pred <- readRDS("D:/77/Research/temp/pred_all_randsl_sch.Rda")
 sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")
 randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randsl.Rda")
 
@@ -117,10 +117,10 @@ all_lmse[,ncol(all_mse)] <- apply(all_lmse[,-ncol(all_lmse)],1,mean)
 IS[,ncol(IS)] <- apply(IS[,-ncol(IS)],1,mean)
 ICR[,ncol(ICR)] <- apply(ICR[,-ncol(ICR)],1,mean)
 
-rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN","Random Slope Bayesian ESN")
-rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN","Random Slope Bayesian ESN")
-rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN","Random Slope Bayesian ESN")
-rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","Integrated Bayesian ESN","Random Slope Bayesian ESN")
+rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
+rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
+rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
+rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
 colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- c(2017:2021,"5 Year Average")
 
 knitr::kable(all_mse, format = "latex", align = 'c',digits = 0)

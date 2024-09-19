@@ -11,7 +11,7 @@ ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")
 single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")
 ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")
 
-
+# Calculate prediction means
 int_mean <- apply(int_pred, c(1,2), mean)
 sep_mean <- apply(sep_pred, c(1,2), mean)
 randsl_mean <- apply(randsl_pred, c(1,2),mean)
@@ -19,22 +19,29 @@ ingarch_mean <- ingarch_pred[1,,]
 single_esn_mean <- t(single_esn_pred)
 ensemble_esn_mean <- apply(ensemble_esn_pred, c(1,2), mean)
 
+# Generate prediction samples
 
+int_samples <- array(rpois(length(int_pred), lambda = int_pred), dim = dim(int_pred))
+sep_samples <- array(rpois(length(sep_pred), lambda = sep_pred), dim = dim(sep_pred))
+randsl_samples <- array(rpois(length(randsl_pred), lambda = randsl_pred), dim = dim(randsl_pred))
+ensemble_esn_samples <- array(rpois(length(ensemble_esn_pred), lambda = ensemble_esn_pred), dim = dim(ensemble_esn_pred))
+
+# Calculate quantiles
 alpha <- 0.05
-int_up <- apply(int_pred, c(1,2), quantile, 1-alpha/2)
-int_low <- apply(int_pred, c(1,2), quantile, alpha/2)
+int_up <- apply(int_samples, c(1,2), quantile, 1-alpha/2)
+int_low <- apply(int_samples, c(1,2), quantile, alpha/2)
 
-sep_up <- apply(sep_pred, c(1,2), quantile, 1-alpha/2)
-sep_low <- apply(sep_pred, c(1,2), quantile, alpha/2)
+sep_up <- apply(sep_samples, c(1,2), quantile, 1-alpha/2)
+sep_low <- apply(sep_samples, c(1,2), quantile, alpha/2)
 
-randsl_up <- apply(randsl_pred, c(1,2), quantile, 1-alpha/2)
-randsl_low <- apply(randsl_pred, c(1,2), quantile, alpha/2)
+randsl_up <- apply(randsl_samples, c(1,2), quantile, 1-alpha/2)
+randsl_low <- apply(randsl_samples, c(1,2), quantile, alpha/2)
 
 ingarch_up <- ingarch_pred[3,,]
 ingarch_low <- ingarch_pred[2,,]
 
-ensemble_up <- apply(ensemble_esn_pred, c(1,2), quantile, 1-alpha/2)
-ensemble_low <- apply(ensemble_esn_pred, c(1,2), quantile, alpha/2)
+ensemble_up <- apply(ensemble_esn_samples, c(1,2), quantile, 1-alpha/2)
+ensemble_low <- apply(ensemble_esn_samples, c(1,2), quantile, alpha/2)
 
 all_mse <- matrix(NA, nrow = 7, ncol = 6)
 all_lmse <- matrix(NA, nrow = 7, ncol = 6)

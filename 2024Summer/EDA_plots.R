@@ -55,12 +55,20 @@ plot_acf <- function(acf_df, title, col = "skyblue") {
 }
 
 p1 <- plot_acf(acf1_df, 
-               paste(schools$state[idx[1]],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[1]])],"-",substr(schools$ID[idx[1]],7,9)))
+                schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[1]])]) +
+      geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
+      geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")   
 p2 <- plot_acf(acf2_df, 
-               paste(schools$state[idx[2]],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[2]])],"-",substr(schools$ID[idx[2]],7,9)))
+                schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[2]])])+
+  geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
+  geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 p3 <- plot_acf(acf3_df, 
-               paste(schools$state[idx[3]],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[3]])],"-",substr(schools$ID[idx[3]],7,9)))
+                schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[3]])])+
+  geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
+  geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 p4 <- plot_acf(acf4_df, 
-               paste(schools$state[idx[4]],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[4]])],"-",substr(schools$ID[idx[4]],7,9)))
+               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[4]])])+
+  geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
+  geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 
 cowplot::plot_grid(p1, p2, p3, p4, ncol = 1)

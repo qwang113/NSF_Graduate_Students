@@ -33,9 +33,9 @@ years_to_pred <- 46:50
 eps = 1 # Avoid underflow, avoid log(0)
 
 # ESN Parameters
-nh = 120
+nh = 30
 nu = 0.9
-aw = au = 0.1
+aw = au = 0.01
 pw = pu = 0.1
 
 # Penalization parameter for Lasso/Ridge for ESN in frequentist view

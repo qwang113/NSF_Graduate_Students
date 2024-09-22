@@ -19,20 +19,20 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 
 pos_sig_xi <- function(sig_xi, xi, alpha){
   ns <- length(xi)
-  loglike <- -log(1+(sig_xi/100)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
+  loglike <- -log(1+(sig_xi)^2) + ns * log(1/sig_xi) + alpha^(1/2)*1/sig_xi*sum(xi)- alpha * sum(exp(alpha^(-1/2)*1/sig_xi*xi))
   return(loglike)
 }
 
 pos_sig_eta <- function(sig_eta, eta_trunc, alpha){
   n_eta <- length(eta_trunc)
-  loglike <- -log(1+(sig_eta/100)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc) - 
+  loglike <- -log(1+(sig_eta)^2) + n_eta * log(1/sig_eta) + alpha^(1/2)*1/sig_eta*sum(eta_trunc) - 
     alpha * sum(exp(alpha^(-1/2)*1/sig_eta*eta_trunc))
   return(loglike)
 }
 
 
 
-ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
+ESN_expansion <- function(Xin, Yin, Xpred, nh=50, nu=0.9, aw=0.01, pw=0.01, au=0.1, pu=0.1, eps = 1){
   ## Fit
   p <- ncol(Xin)
   W <- matrix(runif(nh*nh, min=-aw, max=aw), nrow=nh) * matrix(rbinom(nh*nh,1,1-pw), nrow=nh)
@@ -57,7 +57,7 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 500
+burn = 1000
 thin = 2
 alpha = 1000
 years_to_pred <- 46:50
@@ -68,11 +68,11 @@ eps = 1 # Avoid underflow, avoid log(0)
 
 
 # ESN Parameters
-nh = 120
+nh = 30
 nu = 0.9
-aw = au = 0.1
+aw = au = 0.01
 pw = pu = 0.1
-reps = 100
+
 ns = length(unique(schools$state))
 N = length(unique(schools$UNITID))
 
@@ -128,8 +128,8 @@ for(years in years_to_pred){
   sig_xi_inv <- rep(NA, total_samples)
   sig_eta_inv <- rep(NA, total_samples)
   curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
-  curr_sig_xi_inv <- 0.1
-  curr_sig_eta_inv <- 0.01
+  curr_sig_xi_inv <- 10
+  curr_sig_eta_inv <- 0.0001
   curr_idx <- 1
   save_idx <- 0
   
@@ -153,9 +153,10 @@ for(years in years_to_pred){
     # curr_eta <- rCMLG(H = curr_H_eta, alpha = curr_alpha_eta, kappa = curr_kappa_eta)
     
     # Propose a sigma_xi
-    d <- min(0.5, 1/curr_sig_xi_inv)
-    temp_sig_xi_inv <- 1/runif(1, min = 1/curr_sig_xi_inv-d, max = 1/curr_sig_xi_inv+d)
-    # temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 1))
+    d <- min(0.2, 1/curr_sig_xi_inv)
+    # temp_sig_xi_inv <- exp(1/rnorm(1, mean = log(1/curr_sig_xi_inv), sd = 0.1))
+    # temp_sig_xi_inv <- 1/runif(1, min = 1/curr_sig_xi_inv-d, max = 1/curr_sig_xi_inv+d)
+    temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 0.1))
     # Metropolis-hastings
     prev_loglike <- pos_sig_xi(sig_xi =  1/curr_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
     curr_loglike <- pos_sig_xi(sig_xi = 1/temp_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
@@ -166,9 +167,10 @@ for(years in years_to_pred){
     }
     
     # Propose a sigma_eta
-    d <- min(1, 1/curr_sig_eta_inv)
-    temp_sig_eta_inv <- 1/runif(1, min = 1/curr_sig_eta_inv-d, max = 1/curr_sig_eta_inv+d)
-    # temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 1))
+    d <- min(100, 1/curr_sig_eta_inv)
+    # temp_sig_eta_inv <- exp(1/rnorm(1, mean = log(1/curr_sig_eta_inv), sd = 0.1))
+    # temp_sig_eta_inv <- 1/runif(1, min = 1/curr_sig_eta_inv-d, max = 1/curr_sig_eta_inv+d)
+    temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 0.01))
     # Metropolis-hastings
     prev_loglike <- pos_sig_eta(sig_eta =  1/curr_sig_eta_inv, eta_trunc = curr_eta[1:(ns*nh)], alpha = alpha)
     curr_loglike <- pos_sig_eta(sig_eta = 1/temp_sig_eta_inv, eta_trunc = curr_eta[1:(ns*nh)], alpha = alpha)

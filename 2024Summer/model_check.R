@@ -21,7 +21,8 @@ ensemble_esn_mean <- apply(ensemble_esn_pred, c(1,2), mean)
 
 # Generate prediction samples
 
-int_samples <- array(rpois(length(int_pred), lambda = int_pred), dim = dim(int_pred))
+# int_samples <- array(rpois(length(int_pred), lambda = int_pred), dim = dim(int_pred))
+int_samples <- array(rnbinom(length(int_pred), size = 10, p = 10/(int_pred+10)), dim = dim(int_pred))
 sep_samples <- array(rpois(length(sep_pred), lambda = sep_pred), dim = dim(sep_pred))
 randsl_samples <- array(rpois(length(randsl_pred), lambda = randsl_pred), dim = dim(randsl_pred))
 ensemble_esn_samples <- array(rpois(length(ensemble_esn_pred), lambda = ensemble_esn_pred), dim = dim(ensemble_esn_pred))

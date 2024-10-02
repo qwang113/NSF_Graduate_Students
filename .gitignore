@@ -4,7 +4,5 @@
 .Ruserdata
 .RDataTmp
 .RDataTmp1
-pred_all_ING.Rda
-pred_all_ensemble_esn.Rda
-pred_all_sep.Rda
-pred_all_single_esn.Rda
+.Rda
+

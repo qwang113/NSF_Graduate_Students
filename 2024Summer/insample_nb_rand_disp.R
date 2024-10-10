@@ -40,8 +40,8 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 500
-thin = 2
+burn = 0
+thin = 1
 years_to_pred = 46:50
 alpha_eta = 0.001
 beta_eta = 0.001
@@ -105,14 +105,14 @@ sparse_design <- Matrix(design_here, sparse = TRUE)
 tilde_eta_rs <- matrix(NA, ncol = total_samples, nrow = ncol(design_here))
 sig_xi <- rep(NA, total_samples)
 sig_eta <- rep(NA, total_samples)
-rr <- rep(NA, total_samples)
+rr <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
 curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
 curr_sig_xi <- .1
 curr_sig_eta <- .1
 curr_omega <- rep(1, length(Yin))
 
 prior_mu_eta <- rep(0, dim(design_here)[2])
-curr_r = 70
+curr_r = rep(70, nrow(schoolsM))
 curr_idx <- 1
 save_idx <- 0
 
@@ -144,17 +144,21 @@ while (save_idx < total_samples) {
   beta_xi_pos = sum(curr_eta[(nh*ns+1):length(curr_eta)]^2/2)+beta_xi
   curr_sig_xi = 1/rgamma(1, shape = alpha_xi_pos,rate = beta_xi_pos)
   
-  # Propose a dispersion parameter
-  d <- min(curr_r, 0.5)
-  new_r <- runif(1, curr_r-d, curr_r+d)
-  curr_p <- as.numeric(exp(sparse_design%*%curr_eta)) / (1+as.numeric(exp(sparse_design%*%curr_eta)))
-  curr_llh <- lg_pos_disp(r = curr_r,y = as.vector(Yin), p = curr_p)
-  new_llh <- lg_pos_disp(r = new_r,y = as.vector(Yin), p = curr_p)
-  p_trans <- exp(new_llh-curr_llh)
-  l <- runif(1)
-  curr_r <- ifelse(l<p_trans, new_r, curr_r)
-  
-  
+  # Propose a dispersion parameter for each school
+  curr_p_all <- as.numeric(exp(sparse_design%*%curr_eta)) / (1+as.numeric(exp(sparse_design%*%curr_eta)))
+  for (m in 1:nrow(schoolsM)) {
+    curr_r_school <- curr_r[m]
+    d <- min(curr_r_school, 0.5)
+    new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
+    curr_idx_school <- m+ (0:(ncol(schoolsM)-1))*nrow(schoolsM)
+    curr_p_school <- curr_p_all[curr_idx_school]
+    curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,], p = curr_p_school)
+    new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,], p = curr_p_school)
+    p_trans <- exp(new_llh-curr_llh)
+    l <- runif(1)
+    curr_r[m] <- ifelse(l<p_trans, new_r_school, curr_r_school)
+}
+
   curr_idx <- curr_idx + 1
   # Save current values after burn and thin
   if( (curr_idx > burn) & ((curr_idx - burn)%%thin == 0) ){
@@ -162,7 +166,7 @@ while (save_idx < total_samples) {
     tilde_eta_rs[,save_idx] <- as.vector(curr_eta)
     sig_xi[save_idx] <- curr_sig_xi
     sig_eta[save_idx] <- curr_sig_eta
-    rr[save_idx] <- curr_r
+    rr[,save_idx] <- curr_r
     
     
     pred_here <- sparse_design
@@ -175,8 +179,9 @@ while (save_idx < total_samples) {
     plot(x = 1:save_idx, y = sig_xi[1:save_idx], type = 'l', main = "sig xi", xlab = "")
     # plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv", xlab = "")
     plot(x = 1:save_idx, y = sig_eta[1:save_idx], type = 'l', main = "sig eta", xlab = "")
-    plot(x = 1:save_idx, y = rr[1:save_idx], type = 'l', main = "r", xlab = "")
-    
+    plot(x = 1:save_idx, y = rr[1,1:save_idx], type = 'l', main = "r_1", xlab = "")
+    plot(x = 1:save_idx, y = rr[10,1:save_idx], type = 'l', main = "r_10", xlab = "")
+    plot(x = 1:save_idx, y = rr[1000,1:save_idx], type = 'l', main = "r_1000", xlab = "")
   }
   pred <- pred_all_insample[,save_idx]
   true_value <- as.vector(schoolsM)

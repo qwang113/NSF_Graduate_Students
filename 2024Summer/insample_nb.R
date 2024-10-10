@@ -109,7 +109,7 @@ curr_sig_eta <- .1
 curr_omega <- rep(1, length(Yin))
 
 prior_mu_eta <- rep(0, dim(design_here)[2])
-curr_r = 20
+curr_r = 15
 curr_idx <- 1
 save_idx <- 0
 

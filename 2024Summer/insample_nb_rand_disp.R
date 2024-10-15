@@ -34,7 +34,7 @@ ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.
     H <- rbind(H, tmp_new)
   }
   Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W  + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
-  return(list("train_h" = H, "pred_h" = Hpred,"W"=W, "Uy"=Uy))
+  return(list("train_h" = H, "pred_h" = Hpred,"W"=W, "Uy"=Uy, "U" = U))
 }
 
 state_idx <- model.matrix( ~ factor(state) - 1, data = schools)
@@ -43,8 +43,8 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 5000
-thin = 5
+burn = 100
+thin = 2
 alpha_eta = 0.001
 beta_eta = 0.001
 alpha_xi = 0.001
@@ -208,6 +208,7 @@ while (save_idx < total_samples) {
 # st <- pred_res/sqrt(xt_var)
 write.csv(H$W,file = "W.csv", row.names = FALSE)
 write.csv(H$Uy,file = "Uy.csv", row.names = FALSE)
+write.csv(H$U,file = "U.csv", row.names = FALSE)
 write.csv(tilde_eta_rs, file = "eta_rs.csv", row.names = FALSE)
 write.csv(rr, file = "rr.csv", row.names = FALSE)
 saveRDS(pred_all_insample, file="insample_nb.Rda")

@@ -14,7 +14,7 @@ y_hat <- array(NA, dim = c(num_pred, dim(schoolsM)))
 curr_H <- tmp <- tanh(state_idx %*% t(U))
 inv_logit <- function(x){return(exp(x)/(1+exp(x)))}
 eps <- 1
-n <- ncol(Yin)
+# n <- ncol(Yin)
 for (iter in 1:num_pred) {
   # Generate current design matrix
   curr_design <- matrix(NA, nrow = nrow(schoolsM), ncol = (ncol(W)+1)*length(unique(schools$state)) )
@@ -29,7 +29,7 @@ for (iter in 1:num_pred) {
     print(paste("Iter:",iter, "year",years))
     
     prev_y <- y_hat[iter, , years-1]
-    new_H <- tanh( curr_H%*%W + matrix( prev_y + eps, ncol = 1 ) %*% t(Uy) ) 
+    new_H <- tanh( curr_H%*%W + matrix( log(prev_y + eps), ncol = 1 ) %*% t(Uy) ) 
     curr_H <- new_H
     curr_design <- matrix(NA, nrow = nrow(schoolsM), ncol = (ncol(W)+1)*length(unique(schools$state)) )
     for (i in 1:nrow(schoolsM)) {

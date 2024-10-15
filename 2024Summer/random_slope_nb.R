@@ -4,13 +4,17 @@ library(tidyverse)
 library(glmnet)
 library(tscount)
 library(ggplot2)
-library(pgdraw)
+library(BayesLogit)
 set.seed(0)
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
 
-
+dd <- 10
+lg_pos_disp <- function(r,y,p,sigma=10){
+  out <- sum(lgamma(y+r)-lgamma(r)) + sum(r*log(p)+y*log(1-p)) - log(1+((1/r)/sigma)^2) - 2*log(r) # Jacobian
+  return(out)
+}
 
 ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
   ## Fit
@@ -102,14 +106,13 @@ for(years in years_to_pred){
   tilde_eta_rs <- matrix(NA, ncol = total_samples, nrow = ncol(design_here))
   sig_xi <- rep(NA, total_samples)
   sig_eta <- rep(NA, total_samples)
-  rr <- rep(NA, total_samples)
+  curr_r = rep(25, nrow(schoolsM))
   curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
   curr_sig_xi <- .1
   curr_sig_eta <- .1
   curr_omega <- rep(1, length(Yin))
 
   prior_mu_eta <- rep(0, dim(design_here)[2])
-  curr_r = 10
   curr_idx <- 1
   save_idx <- 0
   
@@ -118,7 +121,7 @@ for(years in years_to_pred){
     b_it = as.vector(Yin) + curr_r
     kappa_it = curr_r - b_it/2
     curr_psi = sparse_design %*% curr_eta
-    curr_omega = pgdraw(b = b_it, c = as.vector(curr_psi))
+    curr_omega <- mapply(function(b, z) rpg(1, h = b, z = z), b_it, as.numeric(curr_psi))
     
     # Sample current eta
     curr_B <- Matrix(diag(c(rep(curr_sig_eta, nh*ns), rep(curr_sig_xi, ns))),sparse = TRUE)
@@ -142,37 +145,20 @@ for(years in years_to_pred){
     curr_sig_xi = 1/rgamma(1, shape = alpha_xi_pos,rate = beta_xi_pos)
     
     
-    # Propose an r
-    # Prior: discrete uniform distribution [1:20]
-    # if(curr_r == 1 ){
-    #   new_r <- 2
-    #   curr_llh <- sum(lgamma(as.vector(Yin+curr_r))) - length(as.vector(Yin))*lgamma(curr_r) 
-    #   + curr_r*sum(sparse_design%*%curr_eta) - curr_r*sum(log(1+exp(sparse_design%*%curr_eta)))
-    #   new_llh <- sum(lgamma(as.vector(Yin+new_r))) - length(as.vector(Yin))*lgamma(new_r)
-    #   + new_r*sum(sparse_design%*%curr_eta) - new_r*sum(log(1+exp(sparse_design%*%curr_eta)))
-    #   
-    #   p_trans <- exp(new_llh - curr_llh) * 0.5
-    # }else if(curr_r == 20 ){
-    #   new_r <- 19
-    #   curr_llh <- sum(lgamma(as.vector(Yin+curr_r))) - length(as.vector(Yin))*lgamma(curr_r)
-    #   + curr_r*sum(sparse_design%*%curr_eta) - curr_r*sum(log(1+exp(sparse_design%*%curr_eta)))
-    #   
-    #   new_llh <- sum(lgamma(as.vector(Yin+new_r))) - length(as.vector(Yin))*lgamma(new_r)
-    #   + new_r*sum(sparse_design%*%curr_eta) - new_r*sum(log(1+exp(sparse_design%*%curr_eta)))
-    #   p_trans <- exp(new_llh - curr_llh) * 0.5
-    # }else{
-    #   walker = runif(1)
-    #   new_r = ifelse(walker>0.5, curr_r+1,curr_r-1)
-    #   curr_llh <- sum(lgamma(as.vector(Yin+curr_r))) - length(as.vector(Yin))*lgamma(curr_r)
-    #   + curr_r*sum(sparse_design%*%curr_eta) - curr_r*sum(log(1+exp(sparse_design%*%curr_eta)))
-    #   
-    #   new_llh <- sum(lgamma(as.vector(Yin+new_r))) - length(as.vector(Yin))*lgamma(new_r)
-    #   + new_r*sum(sparse_design%*%curr_eta) - new_r*sum(log(1+exp(sparse_design%*%curr_eta)))
-    #   p_trans <- exp(new_llh - curr_llh)
-    # }
-    # 
-    # l = runif(1)
-    # curr_r = ifelse(l < p_trans, new_r, curr_r)
+    # Propose a dispersion parameter for each school
+    curr_p_all <- as.numeric(exp(sparse_design%*%curr_eta)) / (1+as.numeric(exp(sparse_design%*%curr_eta)))
+    for (m in 1:nrow(schoolsM)) {
+      curr_r_school <- curr_r[m]
+      d <- min(curr_r_school, dd)
+      new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
+      curr_idx_school <- m + (0:(ncol(Yin)-1))*nrow(schoolsM)
+      curr_p_school <- curr_p_all[curr_idx_school]
+      curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,], p = curr_p_school)
+      new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,], p = curr_p_school)
+      p_trans <- exp(new_llh-curr_llh)
+      l <- runif(1)
+      curr_r[m] <- ifelse(l<p_trans, new_r_school, curr_r_school)
+    }
     
     curr_idx <- curr_idx + 1 
     # Save current values after burn and thin
@@ -181,7 +167,7 @@ for(years in years_to_pred){
       tilde_eta_rs[,save_idx] <- as.vector(curr_eta)
       sig_xi[save_idx] <- curr_sig_xi
       sig_eta[save_idx] <- curr_sig_eta
-      rr[save_idx] <- curr_r
+      rr[,save_idx] <- curr_r
       
       # Initialize the transformed matrix
       transformed_H_pred <- matrix(NA, nrow = nrow(H$pred_h), ncol = nh * ns)

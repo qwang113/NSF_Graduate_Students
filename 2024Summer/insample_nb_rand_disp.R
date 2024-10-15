@@ -10,9 +10,12 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
 
-lg_pos_disp <- function(r,y,p,sigma=1){
-  phi = 1/r
-  out <- sum(lgamma(y+r)-lgamma(r)) - log(1+(phi/sigma)^2) - sum(r*log(p)-(y+r)*log(1-p))
+dd <- 10
+
+
+lg_pos_disp <- function(r,y,p,sigma=10){
+  out <- sum(lgamma(y+r)-lgamma(r)) + sum(r*log(p)+y*log(1-p)) - log(1+((1/r)/sigma)^2) - 2*log(r) # Jacobian
+  return(out)
 }
 
 ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
@@ -31,7 +34,7 @@ ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.
     H <- rbind(H, tmp_new)
   }
   Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W  + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
-  return(list("train_h" = H, "pred_h" = Hpred))
+  return(list("train_h" = H, "pred_h" = Hpred,"W"=W, "Uy"=Uy))
 }
 
 state_idx <- model.matrix( ~ factor(state) - 1, data = schools)
@@ -40,9 +43,8 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 0
-thin = 1
-years_to_pred = 46:50
+burn = 5000
+thin = 5
 alpha_eta = 0.001
 beta_eta = 0.001
 alpha_xi = 0.001
@@ -84,8 +86,8 @@ y_tr <- as.vector(Yin)
 
 # Posterior sample boxes
 tilde_eta <- matrix(NA, ncol = total_samples, nrow = ncol(design_mat))
-sig_xi <- rep(NA, total_samples)
-sep_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
+
+
 random_slope_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
 # Bayesian - Random Slope Model ----------------------------------------------------------------------------------------
 
@@ -112,7 +114,7 @@ curr_sig_eta <- .1
 curr_omega <- rep(1, length(Yin))
 
 prior_mu_eta <- rep(0, dim(design_here)[2])
-curr_r = rep(70, nrow(schoolsM))
+curr_r = rep(25, nrow(schoolsM))
 curr_idx <- 1
 save_idx <- 0
 
@@ -147,10 +149,12 @@ while (save_idx < total_samples) {
   # Propose a dispersion parameter for each school
   curr_p_all <- as.numeric(exp(sparse_design%*%curr_eta)) / (1+as.numeric(exp(sparse_design%*%curr_eta)))
   for (m in 1:nrow(schoolsM)) {
+    
     curr_r_school <- curr_r[m]
-    d <- min(curr_r_school, 0.5)
+    d <- min(curr_r_school, dd)
     new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
-    curr_idx_school <- m+ (0:(ncol(schoolsM)-1))*nrow(schoolsM)
+    
+    curr_idx_school <- m + (0:(ncol(schoolsM)-1))*nrow(schoolsM)
     curr_p_school <- curr_p_all[curr_idx_school]
     curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,], p = curr_p_school)
     new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,], p = curr_p_school)
@@ -174,27 +178,41 @@ while (save_idx < total_samples) {
     pred_all_insample[,save_idx] <- curr_r * (1-curr_p)/curr_p
     # pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
     
-    par(mfrow = c(5,1), mar = c(2,2,2,2))
+    # par(mfrow = c(3,1), mar = c(2,2,2,2))
     # plot(x = 1:save_idx, y = sig_xi_inv[1:save_idx], type = 'l', main = "sig xi inv", xlab = "")
     plot(x = 1:save_idx, y = sig_xi[1:save_idx], type = 'l', main = "sig xi", xlab = "")
     # plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv", xlab = "")
     plot(x = 1:save_idx, y = sig_eta[1:save_idx], type = 'l', main = "sig eta", xlab = "")
-    plot(x = 1:save_idx, y = rr[1,1:save_idx], type = 'l', main = "r_1", xlab = "")
-    plot(x = 1:save_idx, y = rr[10,1:save_idx], type = 'l', main = "r_10", xlab = "")
-    plot(x = 1:save_idx, y = rr[1000,1:save_idx], type = 'l', main = "r_1000", xlab = "")
+    # plot(x = 1:save_idx, y = rr[1,1:save_idx], type = 'l', main = "r_1", xlab = "")
+    # plot(x = 1:save_idx, y = rr[10,1:save_idx], type = 'l', main = "r_10", xlab = "")
+    # plot(x = 1:save_idx, y = rr[1000,1:save_idx], type = 'l', main = "r_1000", xlab = "")
+    boxplot(apply(rr, 1, mean, na.rm = TRUE))
   }
   pred <- pred_all_insample[,save_idx]
   true_value <- as.vector(schoolsM)
   mse <- mean((pred-true_value)^2)
   print(paste(years,curr_idx,mse))
 }
-pred_mean = apply(pred_all_insample,1,mean)
-pred_mean <- matrix(pred_mean, nrow = nrow(schoolsM))
-pred_res <- pred_mean - schoolsM
 
-pred_p <- 1/(pred_mean/mean(rr) + 1)
-xt_var <- pred_mean * 1/pred_p
 
-st <- pred_res/sqrt(xt_var)
 
+
+
+# pred_mean = apply(pred_all_insample,1,mean)
+# pred_mean <- matrix(pred_mean, nrow = nrow(schoolsM))
+# pred_res <- pred_mean - schoolsM
+# 
+# pred_p <- 1/(pred_mean/apply(rr, 1, mean) + 1)
+# xt_var <- pred_mean + pred_mean^2 * 1/apply(rr, 1, mean)
+# 
+# st <- pred_res/sqrt(xt_var)
+write.csv(H$W,file = "W.csv", row.names = FALSE)
+write.csv(H$Uy,file = "Uy.csv", row.names = FALSE)
+write.csv(tilde_eta_rs, file = "eta_rs.csv", row.names = FALSE)
+write.csv(rr, file = "rr.csv", row.names = FALSE)
 saveRDS(pred_all_insample, file="insample_nb.Rda")
+
+
+
+
+

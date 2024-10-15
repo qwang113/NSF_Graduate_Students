@@ -10,7 +10,7 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
 
-dd <- 10
+dd <- 5
 
 
 lg_pos_disp <- function(r,y,p,sigma=10){

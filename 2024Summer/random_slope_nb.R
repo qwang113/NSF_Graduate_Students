@@ -10,9 +10,9 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
 
-dd <- 10
+dd <- 1
 lg_pos_disp <- function(r,y,p,sigma=10){
-  out <- sum(lgamma(y+r)-lgamma(r)) + sum(r*log(p)+y*log(1-p)) - log(1+((1/r)/sigma)^2) - 2*log(r) # Jacobian
+  out <- sum(lgamma(y+r)-lgamma(r)) + sum(r*log(p)+y*log(1-p)) - log(1+((1/r)/sigma)^2) - 2*log(r)
   return(out)
 }
 
@@ -41,7 +41,7 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 100
+burn = 1000
 thin = 2
 years_to_pred = 46:50
 alpha_eta = 0.001
@@ -88,6 +88,7 @@ for(years in years_to_pred){
   sig_xi <- rep(NA, total_samples)
   sep_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
   random_slope_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
+  rr <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
   # Bayesian - Random Slope Model ----------------------------------------------------------------------------------------  
   
   pb <- txtProgressBar(min = 0, max = nrow(H$train_h), style = 3)
@@ -106,7 +107,7 @@ for(years in years_to_pred){
   tilde_eta_rs <- matrix(NA, ncol = total_samples, nrow = ncol(design_here))
   sig_xi <- rep(NA, total_samples)
   sig_eta <- rep(NA, total_samples)
-  curr_r = rep(25, nrow(schoolsM))
+  curr_r = rep(20, nrow(schoolsM))
   curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
   curr_sig_xi <- .1
   curr_sig_eta <- .1
@@ -118,8 +119,9 @@ for(years in years_to_pred){
   
   while (save_idx < total_samples) {
     # Sample current omega
-    b_it = as.vector(Yin) + curr_r
-    kappa_it = curr_r - b_it/2
+    rep_r <- rep(curr_r, ncol(Yin))
+    b_it = as.vector(Yin) + rep_r
+    kappa_it = rep_r - b_it/2
     curr_psi = sparse_design %*% curr_eta
     curr_omega <- mapply(function(b, z) rpg(1, h = b, z = z), b_it, as.numeric(curr_psi))
     
@@ -137,7 +139,7 @@ for(years in years_to_pred){
     alpha_eta_pos = ns*nh/2+alpha_eta
     beta_eta_pos = sum(curr_eta[1:(nh*ns)]^2/2)+beta_eta
     curr_sig_eta = 1/rgamma(1, shape = alpha_eta_pos,rate = beta_eta_pos)
-    
+    # curr_sig_eta = 2000
     
     # Propose a sigma_xi
     alpha_xi_pos = ns/2+alpha_xi
@@ -180,12 +182,12 @@ for(years in years_to_pred){
       random_slope_pred[,save_idx] <- curr_r * (1-curr_p)/curr_p
       # pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
       
-      par(mfrow = c(5,1), mar = c(2,2,2,2))
+      par(mfrow = c(3,1), mar = c(2,2,2,2))
       # plot(x = 1:save_idx, y = sig_xi_inv[1:save_idx], type = 'l', main = "sig xi inv", xlab = "")
       plot(x = 1:save_idx, y = sig_xi[1:save_idx], type = 'l', main = "sig xi", xlab = "")
       # plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv", xlab = "")
       plot(x = 1:save_idx, y = sig_eta[1:save_idx], type = 'l', main = "sig eta", xlab = "")
-      plot(x = 1:save_idx, y = rr[1:save_idx], type = 'l', main = "r", xlab = "")
+      boxplot(apply(rr, 1, mean, na.rm = TRUE))
       
     } 
     pred <- random_slope_pred[,save_idx]

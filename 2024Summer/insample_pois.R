@@ -190,7 +190,9 @@ while (save_idx < total_samples) {
   print(paste(years,curr_idx,mse))
 }
 
-insample_mean <- matrix(apply(insample_pred, 1, mean), nrow = nrow(schoolsM))
-
-
+pred_mean<- matrix(apply(insample_pred, 1, mean), nrow = nrow(schoolsM))
+pred_res <- pred_mean - schoolsM
+xt_var <- pred_mean
+st <- pred_res/sqrt(xt_var)
+var(as.vector(st))
 saveRDS(insample_pred, file="pois_insample_randsl.Rda")

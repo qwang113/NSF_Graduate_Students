@@ -33,9 +33,11 @@ for (iter in 1:num_pred) {
     curr_H <- new_H
     curr_design <- matrix(NA, nrow = nrow(schoolsM), ncol = (ncol(W)+1)*length(unique(schools$state)) )
     for (i in 1:nrow(schoolsM)) {
-      curr_design[i,] <- c(as.vector(outer(curr_H[i,], state_idx[i,], "*")), state_idx[1,])
+      curr_design[i,] <- c(as.vector(outer(curr_H[i,], state_idx[i,], "*")), state_idx[i,])
     }
     y_hat[iter,,years] <- rnbinom( nrow(schoolsM), size = r_hat, prob = inv_logit(curr_design %*% eta_hat) )
   }
   
 }
+Ey_hat <- apply(y_hat, c(2,3), mean)
+var(as.vector((Ey_hat - schoolsM)/sd(Ey_hat - schoolsM)))

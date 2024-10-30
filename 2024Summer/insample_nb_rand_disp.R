@@ -211,7 +211,7 @@ var(as.vector(st))
 # write.csv(H$Uy,file = "Uy.csv", row.names = FALSE)
 # write.csv(H$U,file = "U.csv", row.names = FALSE)
 # write.csv(tilde_eta_rs, file = "eta_rs.csv", row.names = FALSE)
-saveRDS(rr, file = "rr.csv")
+saveRDS(rr, file = "rr.Rda")
 saveRDS(pred_all_insample, file="insample_nb.Rda")
 
 

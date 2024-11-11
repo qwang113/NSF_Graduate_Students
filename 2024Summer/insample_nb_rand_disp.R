@@ -13,7 +13,7 @@ schoolsM <- as.matrix(schools[,10:59])
 dd <- 5
 
 
-lg_pos_disp <- function(r,y,p,sigma=10){
+lg_pos_disp <- function(r,y,p,sigma=1){
   out <- sum(lgamma(y+r)-lgamma(r)) + sum(r*log(p)+y*log(1-p)) - log(1+((1/r)/sigma)^2) - 2*log(r) # Jacobian
   return(out)
 }
@@ -43,7 +43,7 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 5000
+burn = 1000
 thin = 5
 alpha_eta = 0.001
 beta_eta = 0.001
@@ -194,25 +194,28 @@ while (save_idx < total_samples) {
   print(paste(years,curr_idx,mse))
 }
 
+nb_mean = apply(pred_all_insample,1,mean)
+nb_mean <- matrix(nb_mean, nrow = nrow(schoolsM))
+nb_res <- nb_mean - schoolsM
+curr_r <- apply(readRDS("rr.Rda"),1, mean)
+pred_p <- 1/(nb_mean/curr_r + 1)
+xt_var_nb <- nb_mean * 1/pred_p
+st_nb <- nb_res/sqrt(xt_var_nb)
+test_pvalue_nb = test_statistic_nb = rep(NA, nrow(st_nb))
+for (i in 1:nrow(st_nb)) {
+  test_pvalue_nb[i] <- Box.test(st_nb[i,], lag = 7, type = "Ljung-Box")$p.value
+  test_statistic_nb[i] <- Box.test(st_nb[i,], lag = 7, type = "Ljung-Box")$statistic
+}
+bad_cases_nb <- which(test_pvalue_nb <= 0.05/nrow(schools))
+mean(st_nb)
+var(as.vector(st_nb))
 
-
-
-pred_all_insample <- readRDS("insample_nb.Rda")
-pred_mean = apply(pred_all_insample,1,mean)
-pred_mean <- matrix(pred_mean, nrow = nrow(schoolsM))
-pred_res <- pred_mean - schoolsM
-
-pred_p <- 1/(pred_mean/apply(rr, 1, mean) + 1)
-xt_var <- pred_mean + pred_mean^2 * 1/apply(rr, 1, mean)
-
-st <- pred_res/sqrt(xt_var)
-var(as.vector(st))
 # write.csv(H$W,file = "W.csv", row.names = FALSE)
 # write.csv(H$Uy,file = "Uy.csv", row.names = FALSE)
 # write.csv(H$U,file = "U.csv", row.names = FALSE)
 # write.csv(tilde_eta_rs, file = "eta_rs.csv", row.names = FALSE)
-saveRDS(rr, file = "rr.Rda")
-saveRDS(pred_all_insample, file="insample_nb.Rda")
+# saveRDS(rr, file = "rr.Rda")
+# saveRDS(pred_all_insample, file="insample_nb.Rda")
 
 
 

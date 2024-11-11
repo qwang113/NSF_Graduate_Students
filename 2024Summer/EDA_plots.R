@@ -5,7 +5,7 @@ library(tidyr)
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schoolsM <- as.matrix(schools[,10:59])
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
-
+nb_pred <- readRDS("D:/77/Research/temp/pred_all_randsl_sch.Rda")
 set.seed(2)
 idx <- floor(runif(4)*nrow(schoolsM))
 df <- data.frame(
@@ -72,3 +72,7 @@ p4 <- plot_acf(acf4_df,
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 
 cowplot::plot_grid(p1, p2, p3, p4, ncol = 1)
+
+
+
+

@@ -5,11 +5,15 @@ library(glmnet)
 library(tscount)
 library(ggplot2)
 library(pgdraw)
+library(BayesLogit)
 set.seed(0)
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
-
+lg_pos_disp <- function(r,y,p,sigma=10){
+  out <- sum(lgamma(y+r)-lgamma(r)) + sum(r*log(p)+y*log(1-p)) - log(1+((1/r)/sigma)^2) - 2*log(r)
+  return(out)
+}
 
 
 ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
@@ -45,7 +49,7 @@ beta_eta = 0.001
 alpha_xi = 0.001
 beta_xi = 0.001
 eps = 1 # Avoid underflow, avoid log(0)
-
+dd <- 1
 
 # ESN Parameters
 nh = 30
@@ -109,17 +113,19 @@ curr_sig_eta <- .1
 curr_omega <- rep(1, length(Yin))
 
 prior_mu_eta <- rep(0, dim(design_here)[2])
-curr_r = 15
+curr_r = rep(20, nrow(schoolsM))
+rr <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
 curr_idx <- 1
 save_idx <- 0
 
 while (save_idx < total_samples) {
   # Sample current omega
-  b_it = as.vector(Yin) + curr_r
-  kappa_it = curr_r - b_it/2
+  rep_r <- rep(curr_r, ncol(Yin))
+  b_it = as.vector(Yin) + rep_r
+  kappa_it = rep_r - b_it/2
   curr_psi = sparse_design %*% curr_eta
-  curr_omega = pgdraw(b = b_it, c = as.vector(curr_psi))
-
+  curr_omega <- mapply(function(b, z) rpg(1, h = b, z = z), b_it, as.numeric(curr_psi))
+  
   # Sample current eta
   curr_B <- Matrix(diag(c(rep(curr_sig_eta, nh*ns), rep(curr_sig_xi, ns))),sparse = TRUE)
   pos_sigma_eta <- solve(t(sparse_design)%*%(sparse_design * curr_omega)  + solve(curr_B))
@@ -140,15 +146,34 @@ while (save_idx < total_samples) {
   alpha_xi_pos = ns/2+alpha_xi
   beta_xi_pos = sum(curr_eta[(nh*ns+1):length(curr_eta)]^2/2)+beta_xi
   curr_sig_xi = 1/rgamma(1, shape = alpha_xi_pos,rate = beta_xi_pos)
-
+  
+  # Propose a dispersion parameter for each school
+  curr_p_all <- as.numeric(exp(sparse_design%*%curr_eta)) / (1+as.numeric(exp(sparse_design%*%curr_eta)))
+  for (m in 1:nrow(schoolsM)) {
+    curr_r_school <- curr_r[m]
+    d <- min(curr_r_school, dd)
+    new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
+    curr_idx_school <- m + (0:(ncol(Yin)-1))*nrow(schoolsM)
+    curr_p_school <- curr_p_all[curr_idx_school]
+    curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,], p = curr_p_school)
+    new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,], p = curr_p_school)
+    p_trans <- exp(new_llh-curr_llh)
+    l <- runif(1)
+    curr_r[m] <- ifelse(l<p_trans, new_r_school, curr_r_school)
+  }
+  
+  
   curr_idx <- curr_idx + 1
+  
+  
+  
   # Save current values after burn and thin
   if( (curr_idx > burn) & ((curr_idx - burn)%%thin == 0) ){
     save_idx <- save_idx + 1
     tilde_eta_rs[,save_idx] <- as.vector(curr_eta)
     sig_xi[save_idx] <- curr_sig_xi
     sig_eta[save_idx] <- curr_sig_eta
-    rr[save_idx] <- curr_r
+    rr[,save_idx] <- curr_r
 
 
     pred_here <- sparse_design

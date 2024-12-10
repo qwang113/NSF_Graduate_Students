@@ -39,10 +39,10 @@ acf_to_df <- function(acf_object) {
   )
 }
  
-acf1_df <- acf_to_df(acf1)
-acf2_df <- acf_to_df(acf2)
-acf3_df <- acf_to_df(acf3)
-acf4_df <- acf_to_df(acf4)
+acf1_df <- acf_to_df(acf1)[2:10,]
+acf2_df <- acf_to_df(acf2)[2:10,]
+acf3_df <- acf_to_df(acf3)[2:10,]
+acf4_df <- acf_to_df(acf4)[2:10,]
 
 plot_acf <- function(acf_df, title, col = "skyblue") {
   ggplot(acf_df, aes(x = lag, y = acf)) +
@@ -51,6 +51,7 @@ plot_acf <- function(acf_df, title, col = "skyblue") {
     ggtitle(title) +
     ylab("ACF") +
     xlab("Lag") +
+    scale_x_continuous(breaks = seq(0, max(acf_df$lag), by = 1)) +
     theme(plot.title = element_text(hjust = 0.5),panel.grid = element_blank() ) # Center the title
 }
 
@@ -71,7 +72,7 @@ p4 <- plot_acf(acf4_df,
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 
-cowplot::plot_grid(p1, p2, p3, p4, ncol = 1)
+cowplot::plot_grid(p1, p2, p3, p4, ncol = 2)
 
 
 

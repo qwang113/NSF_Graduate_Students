@@ -195,4 +195,4 @@ pred_res <- pred_mean - schoolsM
 xt_var <- pred_mean
 st <- pred_res/sqrt(xt_var)
 var(as.vector(st))
-saveRDS(insample_pred, file="pois_insample_randsl.Rda")
+saveRDS(insample_pred, file="insample_pois.Rda")

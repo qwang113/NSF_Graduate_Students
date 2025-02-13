@@ -26,6 +26,7 @@ int_samples <- array(rnbinom(length(int_pred), size = 10, p = 10/(int_pred+10)),
 sep_samples <- array(rpois(length(sep_pred), lambda = sep_pred), dim = dim(sep_pred))
 randsl_samples <- array(rpois(length(randsl_pred), lambda = randsl_pred), dim = dim(randsl_pred))
 ensemble_esn_samples <- array(rpois(length(ensemble_esn_pred), lambda = ensemble_esn_pred), dim = dim(ensemble_esn_pred))
+# ingarch_samples <- array(rpois(length(ingarch_pred[1,,]), lambda = ingarch_pred[1,,]), dim = dim(ingarch_pred[1,,]))
 
 # Calculate quantiles
 alpha <- 0.05
@@ -40,6 +41,9 @@ randsl_low <- apply(randsl_samples, c(1,2), quantile, alpha/2)
 
 ingarch_up <- ingarch_pred[3,,]
 ingarch_low <- ingarch_pred[2,,]
+# ingarch_up <- qpois(1-alpha/2,lambda = ingarch_pred[1,,])
+# ingarch_low <- qpois(alpha/2,lambda = ingarch_pred[1,,])
+
 
 ensemble_up <- apply(ensemble_esn_samples, c(1,2), quantile, 1-alpha/2)
 ensemble_low <- apply(ensemble_esn_samples, c(1,2), quantile, alpha/2)
@@ -118,10 +122,10 @@ all_lmse[,ncol(all_mse)] <- apply(all_lmse[,-ncol(all_lmse)],1,mean)
 IS[,ncol(IS)] <- apply(IS[,-ncol(IS)],1,mean)
 ICR[,ncol(ICR)] <- apply(ICR[,-ncol(ICR)],1,mean)
 
-rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
-rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
-rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
-rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Separate Bayesian ESN","School Level Bayesian ESN","Random Slope Bayesian ESN")
+rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
+rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
+rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
+rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
 colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- c(2017:2021,"5 Year Average")
 
 knitr::kable(all_mse, format = "latex", align = 'c',digits = 0)
@@ -130,38 +134,43 @@ knitr::kable(IS, format = "latex", align = 'c', digits = 0)
 knitr::kable(ICR, format = "latex", align = 'c', digits = 3)
 
 # - Random Slope Checking
-y = 1
-true <- schoolsM[,45+y]
-pred <- randsl_mean[y,]
-boxplot((true-pred)^2)
-special_order <- order((true-pred)^2, decreasing = TRUE)
+# y = 1
+# true <- schoolsM[,45+y]
+# pred <- randsl_mean[y,]
+# boxplot((true-pred)^2)
+# special_order <- order((true-pred)^2, decreasing = TRUE)
+# 
+# for (i in special_order[1:50]) {
+#   p1 <-
+#     ggplot() +
+#     geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+#     geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+#     # geom_line(aes( x = 2017:2021, y = randsl_mean[,special_order[1]]), color = "blue") +
+#     labs(title = paste(schools$state[i],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[i])])) +
+#     geom_vline(xintercept = 2017)
+#   p2 <-  ggplot() +
+#     geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+#     geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
+#     geom_line(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") +
+#     geom_point(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") 
+#   p_all <- cowplot::plot_grid(p1,p2,ncol = 1)
+#     ggsave(paste("D:/77/Research/temp/special/",y,"_",i,".png",sep = ""), plot = p_all, width = 8, height = 6, dpi = 300,)
+# }
+# 
+# delete_idx <- unique(c(266,250,262,483,1021,745,393,1543,1381,1305,1088,1727,363,1010,661,404,1233,
+#                 580,1438,627,639,1125,1655,267,318,404,39,69,129,359,702,649,1788,875,47,1438,244,487,297,460,
+#                 1568,228,1066))
 
-for (i in special_order[1:50]) {
-  p1 <-
-    ggplot() +
-    geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
-    geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
-    # geom_line(aes( x = 2017:2021, y = randsl_mean[,special_order[1]]), color = "blue") +
-    labs(title = paste(schools$state[i],":", schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[i])])) +
-    geom_vline(xintercept = 2017)
-  p2 <-  ggplot() +
-    geom_line(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
-    geom_point(aes( x = 1972:2021, y = schoolsM[i,]), color = "red") +
-    geom_line(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") +
-    geom_point(aes( x = 2017:2021, y = randsl_mean[,i]), color = "blue") 
-  p_all <- cowplot::plot_grid(p1,p2,ncol = 1)
-    ggsave(paste("D:/77/Research/temp/special/",y,"_",i,".png",sep = ""), plot = p_all, width = 8, height = 6, dpi = 300,)
-}
+# check IS
+num_sch <- ncol(schoolsM)
+ggplot() +
+  geom_point(aes(x = 1:length(as.vector(schoolsM[1:num_sch,46])), y = as.vector(schoolsM[1:num_sch,46])), size = 1) + 
+  geom_ribbon(aes(ymin = ingarch_low[1,1:num_sch], ymax = ingarch_up[1,1:num_sch], x = 1:length(as.vector(schoolsM[1:num_sch,46]))),
+              fill = "red", alpha = 0.4) +
+  geom_ribbon(aes(ymin = int_low[1,1:num_sch], ymax = int_up[1,1:num_sch], x = 1:length(as.vector(schoolsM[1:num_sch,46]))), fill = "blue", alpha = 0.4)
 
-delete_idx <- unique(c(266,250,262,483,1021,745,393,1543,1381,1305,1088,1727,363,1010,661,404,1233,
-                580,1438,627,639,1125,1655,267,318,404,39,69,129,359,702,649,1788,875,47,1438,244,487,297,460,
-                1568,228,1066))
 
-# 2017         2018         2019         2020 2021 5 Year Average
-# Intercept                    9505.57 9.177750e+03 9.429050e+03 6.264150e+03   NA             NA
-# INGARCH(1,1)                 2101.20 8.267000e+02 8.374700e+02 1.110530e+03   NA             NA
-# Single ESN                   2619.77 3.235700e+02 5.867600e+02 2.421310e+03   NA             NA
-# Ensemble ESN                 2426.54 3.412800e+02 5.944800e+02 1.769330e+03   NA             NA
-# Separate Bayesian ESN     1395692.71 1.826928e+26 3.611812e+84 1.452277e+35   NA             NA
-# Integrated Bayesian ESN      3552.89 3.556800e+02 7.091100e+02 3.927300e+03   NA             NA
-# Random Slope Bayesian ESN     149.20 5.294086e+05 4.653600e+02 3.924200e+02   NA             NA
+res <- schoolsM[,46:50] - t(randsl_mean)
+boxplot(res)
+
+mean(res/sqrt(t(randsl_mean)))

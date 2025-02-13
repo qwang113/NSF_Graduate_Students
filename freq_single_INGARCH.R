@@ -39,6 +39,8 @@ aw = au = 0.01
 pw = pu = 0.1
 
 # Penalization parameter for Lasso/Ridge for ESN in frequentist view
+
+# Lambdas at 0.5 1 1.5 are chosen for cv
 lambda <- 1
 
 # Initialization

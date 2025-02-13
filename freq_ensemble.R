@@ -33,9 +33,9 @@ state_idx <- model.matrix( ~ factor(state) -1, data = schools)
 eps = 1 # Avoid underflow, avoid log(0)
 
 # ESN Parameters
-nh = 120
+nh = 30
 nu = 0.9
-aw = au = 0.1
+aw = au = 0.01
 pw = pu = 0.1
 reps = 1000
 

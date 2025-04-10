@@ -10,12 +10,12 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schoolsM <- as.matrix(schools[,10:59])
 set.seed(2)
 idx <- floor(runif(4)*nrow(schoolsM))
-
+setwd("D:/77/Research/temp/")
 pred_nb <- readRDS("insample_nb.Rda")
 nb_mean = apply(pred_nb,1,mean)
 nb_mean <- matrix(nb_mean, nrow = nrow(schoolsM))
 nb_res <- nb_mean - schoolsM
-curr_r <- apply(readRDS("rr.Rda"),1, mean)
+curr_r <- apply(readRDS(here::here("rr.Rda")),1, mean)
 pred_p <- 1/(nb_mean/curr_r + 1)
 xt_var_nb <- nb_mean * 1/pred_p
 st_nb <- nb_res/sqrt(xt_var_nb)
@@ -145,21 +145,67 @@ plot_acf <- function(acf_df, title, col = "skyblue") {
 }
 
 p1 <- plot_acf(acf1_df, 
-               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[1]])]) +
+               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[1]])],"red") +
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")   
 p2 <- plot_acf(acf2_df, 
-               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[2]])])+
+               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[2]])],"lightpink")+
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 p3 <- plot_acf(acf3_df, 
-               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[3]])])+
+               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[3]])],"lightblue")+
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 p4 <- plot_acf(acf4_df, 
-               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[4]])])+
+               schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[4]])],"lightgreen")+
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 
 cowplot::plot_grid(p1, p2, p3, p4, ncol = 2)
+
+
+# More series
+
+n <- 100  
+idx <- factor(sample(1:nrow(schoolsM),n))
+
+df <- data.frame(
+  Year = rep(years, n),
+  Counts = as.vector(t(schoolsM[idx, ])),
+  group = rep(idx,each = length(years))
+)
+
+
+
+
+
+
+
+
+
+
+# ---------------------------------------------- Outliers check
+schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
+idx <- c(1558,388) 
+years <- 1972:2021
+df <- data.frame(
+  Year = rep(years, 2),
+  Counts = as.vector(t(schoolsM[idx, ])),
+  group = rep(
+    sapply(idx, function(i) {
+      schools_name$INSTNM[which(schools_name$UNITID == schools$UNITID[i])]
+    }),
+    each = length(years)
+  )
+)
+
+
+# Plot with ggplot
+ggplot(df, aes(x = Year, y = Counts, color = group)) +
+  geom_line(linewidth = 1.5) +
+  scale_color_manual(values = c("lightpink", "lightblue")) +
+  labs(color = "") +
+  theme(legend.position = "bottom") +
+  guides(color = guide_legend(nrow = 2))
+
 

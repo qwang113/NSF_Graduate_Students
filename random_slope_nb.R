@@ -16,14 +16,14 @@ lg_pos_disp <- function(r,y,p,sigma=10){
   return(out)
 }
 
-ESN_expansion <- function(Xin, Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
+ESN_expansion <- function(Xin = matrix(0,), Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
   ## Fit
   p <- ncol(Xin)
   W <- matrix(runif(nh*nh, min=-aw, max=aw), nrow=nh) * matrix(rbinom(nh*nh,1,1-pw), nrow=nh)
   W <- (nu/max(abs(eigen(W, only.values=T)$values))) * W
   U <- matrix(runif(nh*p, min=-au, max=au), nrow=nh) * matrix(rbinom(nh*p,1,1-pu), nrow=nh)
   Uy <- matrix(runif(nh, min = -au, max = au), nrow = nh) * matrix(rbinom(nh,1,1-pu), ncol = 1)
-  H <- tmp <- tanh(matrix(log(Yin[,1] + eps), ncol = 1 ) %*% t(Uy))
+  H <- tmp <- matrix(0, nrow = nrow(schoolsM), ncol=nh)
   for(i in 2:ncol(Yin)){
     tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new

@@ -17,24 +17,23 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
 
 
 
-ESN_expansion <- function(Xin, Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
+ESN_expansion <- function(Xin = matrix(0,), Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
   ## Fit
   p <- ncol(Xin)
   W <- matrix(runif(nh*nh, min=-aw, max=aw), nrow=nh) * matrix(rbinom(nh*nh,1,1-pw), nrow=nh)
   W <- (nu/max(abs(eigen(W, only.values=T)$values))) * W
   U <- matrix(runif(nh*p, min=-au, max=au), nrow=nh) * matrix(rbinom(nh*p,1,1-pu), nrow=nh)
   Uy <- matrix(runif(nh, min = -au, max = au), nrow = nh) * matrix(rbinom(nh,1,1-pu), ncol = 1)
-  H <- matrix(NA, nrow=nrow(Xin), ncol=nh)
-  tmp <- tanh(Xin %*% t(U))
-  H <- tmp
+  H <- tmp <- matrix(0, nrow = nrow(schoolsM), ncol=nh)
   for(i in 2:ncol(Yin)){
-    tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix( log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
+    tmp_new <- tanh(tmp%*%W + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new
     H <- rbind(H, tmp_new)
   }
-  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + Xin%*%t(U) + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
-  return(list("train_h" = H, "pred_h" = Hpred))
+  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
+  return(list("train_h" = H[-c(1:nrow(Xin)),], "pred_h" = Hpred))
 }
+
 
 
 state_idx <- model.matrix( ~ factor(state) -1, data = schools)
@@ -68,7 +67,7 @@ for (years in years_to_pred) {
   H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
   
   # Number of times to repeat
-  n <- ncol(Yin)
+  n <- ncol(Yin[,-1])
   # Repeat the matrix and bind by rows
   repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
   design_mat <- cbind(H$train_h, repeated_state)
@@ -77,7 +76,7 @@ for (years in years_to_pred) {
   # Input Data
   nh <- dim(H$train_h)[2]
   ns <- dim(state_idx)[2]
-  y_tr <- as.vector(Yin)
+  y_tr <- as.vector(Yin[,-1])
   
   # Posterior sample boxes
   tilde_eta <- matrix(NA, ncol = total_samples, nrow = ncol(design_mat))
@@ -88,12 +87,12 @@ for (years in years_to_pred) {
     print(paste(years,idx))
     for (i in 1:nrow(schoolsM)) {
       # curr_idx_h <- seq(from = i, to = i + nrow(schoolsM)*(nrow(H$train_h)/nrow(schoolsM) - 1), by = nrow(schoolsM))
-      curr_idx_h <- i + (0:(years - 2))*nrow(schoolsM)
+      curr_idx_h <- i + (0:(years - 3))*nrow(schoolsM)
       curr_H <- H$train_h[curr_idx_h,]
       curr_H_sep <- rbind(curr_H,alpha^{-1/2}*diag(rep(sig_eta_inv,nh)))
-      curr_y <- Yin[i,1:(years-1)]
+      curr_y <- Yin[i,2:(years-1)]
       curr_alpha <- matrix(c(curr_y+eps, rep(alpha,nh)), ncol = 1)
-      curr_kappa <- matrix(c(rep(1, ncol(Yin)), rep(alpha, nh)), ncol = 1)
+      curr_kappa <- matrix(c(rep(1, ncol(Yin[,-1])), rep(alpha, nh)), ncol = 1)
       curr_pos_eta <- rCMLG(H = curr_H_sep, alpha = curr_alpha, kappa = curr_kappa)
       sep_eta_pred[i,idx] <- exp(H$pred_h[i,] %*% curr_pos_eta)
     }

@@ -25,12 +25,12 @@ ESN_expansion <- function(Xin = matrix(0,), Yin, Xpred, nh=100, nu=0.8, aw=0.1, 
   Uy <- matrix(runif(nh, min = -au, max = au), nrow = nh) * matrix(rbinom(nh,1,1-pu), ncol = 1)
   H <- tmp <- matrix(0, nrow = nrow(schoolsM), ncol=nh)
   for(i in 2:ncol(Yin)){
-    tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
+    tmp_new <- tanh(tmp%*%W + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new
     H <- rbind(H, tmp_new)
   }
-  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + Xin%*%t(U) + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
-  return(list("train_h" = H, "pred_h" = Hpred))
+  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
+  return(list("train_h" = H[-c(1:nrow(Xin)),], "pred_h" = Hpred))
 }
 
 
@@ -41,7 +41,7 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 # MCMC parameters
 total_samples <- 1000
 burn = 1000
-thin = 2
+thin = 1
 years_to_pred = 46:50
 alpha_eta = 0.001
 beta_eta = 0.001
@@ -74,13 +74,13 @@ for(years in years_to_pred){
   # Number of times to repeat
   n <- ncol(Yin)
   # Repeat the matrix and bind by rows
-  repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
+  repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))[-c(1:nrow(Xin)),]
   design_mat <- cbind(H$train_h, repeated_state)
   
   # Input Data
   nh <- dim(H$train_h)[2]
   ns <- dim(state_idx)[2]
-  y_tr <- as.vector(Yin)
+  y_tr <- as.vector(Yin[,-1])
   
   # Posterior sample boxes
   tilde_eta <- matrix(NA, ncol = total_samples, nrow = ncol(design_mat))
@@ -118,8 +118,8 @@ for(years in years_to_pred){
   
   while (save_idx < total_samples) {
     # Sample current omega
-    rep_r <- rep(curr_r, ncol(Yin))
-    b_it = as.vector(Yin) + rep_r
+    rep_r <- rep(curr_r, ncol(Yin[,-1]))
+    b_it = as.vector(Yin[,-1]) + rep_r
     kappa_it = rep_r - b_it/2
     curr_psi = sparse_design %*% curr_eta
     curr_omega <- mapply(function(b, z) rpg(1, h = b, z = z), b_it, as.numeric(curr_psi))
@@ -152,10 +152,10 @@ for(years in years_to_pred){
       curr_r_school <- curr_r[m]
       d <- min(curr_r_school, dd)
       new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
-      curr_idx_school <- m + (0:(ncol(Yin)-1))*nrow(schoolsM)
+      curr_idx_school <- m + (0:(ncol(Yin[,-1])-1))*nrow(schoolsM)
       curr_p_school <- curr_p_all[curr_idx_school]
-      curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,], p = curr_p_school)
-      new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,], p = curr_p_school)
+      curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,-1], p = curr_p_school)
+      new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,-1], p = curr_p_school)
       p_trans <- exp(new_llh-curr_llh)
       l <- runif(1)
       curr_r[m] <- ifelse(l<p_trans, new_r_school, curr_r_school)
@@ -193,7 +193,6 @@ for(years in years_to_pred){
     true_value <- schoolsM[,years]
     mse <- mean((pred-true_value)^2)
     print(paste(years,curr_idx,mse))
-    
   }
   pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
 }
@@ -201,3 +200,4 @@ for(years in years_to_pred){
 
 
 saveRDS(pred_all_randslp, file="pred_all_randsl_sch.Rda")
+saveRDS(rr, file="rr.Rda")

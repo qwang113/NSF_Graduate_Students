@@ -106,7 +106,7 @@ for(years in years_to_pred){
   tilde_eta_rs <- matrix(NA, ncol = total_samples, nrow = ncol(design_here))
   sig_xi <- rep(NA, total_samples)
   sig_eta <- rep(NA, total_samples)
-  curr_r = rep(1000, nrow(schoolsM))
+  curr_r = rep(20, nrow(schoolsM))
   curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
   curr_sig_xi <- .1
   curr_sig_eta <- .1
@@ -114,7 +114,7 @@ for(years in years_to_pred){
 
   prior_mu_eta <- rep(0, dim(design_here)[2])
   curr_idx <- 1
-  save_idx <- 0
+  save_idx <- 1
   
   while (save_idx < total_samples) {
     # Sample current omega

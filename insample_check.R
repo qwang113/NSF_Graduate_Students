@@ -76,7 +76,7 @@ zoomed_plot <- ggplot(long_data, aes(x = group, y = value, fill = group)) +
   )
 
 # Combine the two plots into one figure
-combined_plot <- full_plot / zoomed_plot
+combined_plot <-zoomed_plot
 
 # Display the combined plot
 combined_plot

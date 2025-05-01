@@ -6,6 +6,7 @@ library(tscount)
 library(ggplot2)
 library(BayesLogit)
 library(forecast)
+years <- 1972:2021
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schoolsM <- as.matrix(schools[,10:59])
 set.seed(2)
@@ -167,20 +168,30 @@ cowplot::plot_grid(p1, p2, p3, p4, ncol = 2)
 # More series
 
 n <- 100  
-idx <- factor(sample(1:nrow(schoolsM),n))
+idx <- factor(sample(1:nrow(st_nb),n))
 
 df <- data.frame(
   Year = rep(years, n),
-  Counts = as.vector(t(schoolsM[idx, ])),
+  Counts = as.vector(t(st_nb[idx, ])),
   group = rep(idx,each = length(years))
 )
 
+ggplot(df, aes(x = Year, y = Counts, group = group)) +
+  geom_line(color = "black", linewidth = 0.5, alpha = 0.15) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  theme_bw() +
+  theme(legend.position = "none")
 
 
 
+resis_diff <- schoolsM[,46:50] - schoolsM[,45:49]
+dd <- matrix(rpois(length(schoolsM[,46:50]), schoolsM[,46:50]), nrow = nrow(schoolsM), ncol = 5)
+
+apply((dd - schoolsM[,45:49])^2, 2, mean)
 
 
-
+resis_ldiff <- log(schoolsM[,46:50]+1) - log(schoolsM[,45:49]+1)
+apply(resis_ldiff^2, 2, mean)
 
 
 

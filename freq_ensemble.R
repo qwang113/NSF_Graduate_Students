@@ -14,11 +14,9 @@ ESN_expansion <- function(Xin, Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.
   W <- (nu/max(abs(eigen(W, only.values=T)$values))) * W
   U <- matrix(runif(nh*p, min=-au, max=au), nrow=nh) * matrix(rbinom(nh*p,1,1-pu), nrow=nh)
   Uy <- matrix(runif(nh, min = -au, max = au), nrow = nh) * matrix(rbinom(nh,1,1-pu), ncol = 1)
-  H <- matrix(NA, nrow=nrow(Xin), ncol=nh)
-  tmp <- tanh(Xin %*% t(U))
-  H <- tmp
+  H <- tmp <- tanh(matrix(log(Yin[,1] + eps), ncol = 1 ) %*% t(Uy))
   for(i in 2:ncol(Yin)){
-    tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix( log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
+    tmp_new <- tanh(tmp%*%W + Xin%*%t(U) + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new
     H <- rbind(H, tmp_new)
   }
@@ -57,8 +55,8 @@ for (years in years_to_pred) {
   # Number of times to repeat
   n <- ncol(Yin)
   # Repeat the matrix and bind by rows
-  repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
-  design_mat <- cbind(H$train_h, repeated_state)
+
+  design_mat <- cbind(H$train_h)
   
   # Input Data
   nh <- dim(H$train_h)[2]

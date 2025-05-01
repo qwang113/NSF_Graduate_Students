@@ -10,7 +10,7 @@ schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
 schoolsM <- as.matrix(schools[,10:59])
 
-dd <- 1
+dd <- 100
 lg_pos_disp <- function(r,y,p,sigma=10){
   out <- sum(lgamma(y+r)-lgamma(r)) + sum(r*log(p)+y*log(1-p)) - log(1+((1/r)/sigma)^2) - 2*log(r)
   return(out)
@@ -40,7 +40,7 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 1000
+burn = 0
 thin = 1
 years_to_pred = 46:50
 alpha_eta = 0.001
@@ -72,9 +72,9 @@ for(years in years_to_pred){
   H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
   
   # Number of times to repeat
-  n <- ncol(Yin)
+  n <- ncol(Yin[,-1])
   # Repeat the matrix and bind by rows
-  repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))[-c(1:nrow(Xin)),]
+  repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
   design_mat <- cbind(H$train_h, repeated_state)
   
   # Input Data
@@ -106,11 +106,11 @@ for(years in years_to_pred){
   tilde_eta_rs <- matrix(NA, ncol = total_samples, nrow = ncol(design_here))
   sig_xi <- rep(NA, total_samples)
   sig_eta <- rep(NA, total_samples)
-  curr_r = rep(20, nrow(schoolsM))
+  curr_r = rep(10000, nrow(schoolsM))
   curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
   curr_sig_xi <- .1
   curr_sig_eta <- .1
-  curr_omega <- rep(1, length(Yin))
+  curr_omega <- rep(1, length(Yin[,-1]))
 
   prior_mu_eta <- rep(0, dim(design_here)[2])
   curr_idx <- 1

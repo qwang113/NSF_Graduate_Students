@@ -208,3 +208,4 @@ for(years in years_to_pred){
 
 setwd(here::here())
 saveRDS(pred_all_randslp, file="pred_all_randsl.Rda")
+saveRDS(rr, file="rr.Rda")

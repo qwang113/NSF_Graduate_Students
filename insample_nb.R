@@ -16,24 +16,23 @@ lg_pos_disp <- function(r,y,p,sigma=10){
 }
 
 
-ESN_expansion <- function(Xin, Yin, Xpred, nh=120, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
+ESN_expansion <- function(Xin = matrix(0), Yin, Xpred, nh=100, nu=0.8, aw=0.1, pw=0.1, au=0.1, pu=0.1, eps = 1){
   ## Fit
   p <- ncol(Xin)
   W <- matrix(runif(nh*nh, min=-aw, max=aw), nrow=nh) * matrix(rbinom(nh*nh,1,1-pw), nrow=nh)
   W <- (nu/max(abs(eigen(W, only.values=T)$values))) * W
   U <- matrix(runif(nh*p, min=-au, max=au), nrow=nh) * matrix(rbinom(nh*p,1,1-pu), nrow=nh)
   Uy <- matrix(runif(nh, min = -au, max = au), nrow = nh) * matrix(rbinom(nh,1,1-pu), ncol = 1)
-  H <- matrix(NA, nrow=nrow(Xin), ncol=nh)
-  tmp <- tanh(Xin %*% t(U))
-  H <- tmp
+  H <- tmp <- matrix(0, nrow = nrow(schoolsM), ncol=nh)
   for(i in 2:ncol(Yin)){
-    tmp_new <- tanh(tmp%*%W + matrix( log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
+    tmp_new <- tanh(tmp%*%W + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new
     H <- rbind(H, tmp_new)
   }
-  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W  + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
-  return(list("train_h" = H, "pred_h" = Hpred))
+  Hpred <- tanh(H[(nrow(H)-nrow(tmp)+1):nrow(H), ]%*%W + matrix( log(Yin[,ncol(Yin)] + eps), ncol = 1 ) %*% t(Uy)) 
+  return(list("train_h" = H[-c(1:nrow(Xin)),], "pred_h" = Hpred))
 }
+
 
 state_idx <- model.matrix( ~ factor(state) - 1, data = schools)
 school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
@@ -61,7 +60,7 @@ N = length(unique(schools$UNITID))
 
 # Initialization
 
-pred_all_insample <- matrix(NA, nrow = length(schoolsM), ncol = total_samples)
+pred_all_insample <- matrix(NA, nrow = length(schoolsM[,-1]), ncol = total_samples)
 years = 51
 
   
@@ -73,7 +72,7 @@ Yin <- schoolsM[,(1:(years-1))]
 H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
 
 # Number of times to repeat
-n <- ncol(Yin)
+n <- ncol(Yin[,-1])
 # Repeat the matrix and bind by rows
 repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
 design_mat <- cbind(H$train_h, repeated_state)
@@ -81,7 +80,7 @@ design_mat <- cbind(H$train_h, repeated_state)
 # Input Data
 nh <- dim(H$train_h)[2]
 ns <- dim(state_idx)[2]
-y_tr <- as.vector(Yin)
+y_tr <- as.vector(Yin[,-1])
 
 # Posterior sample boxes
 tilde_eta <- matrix(NA, ncol = total_samples, nrow = ncol(design_mat))
@@ -120,8 +119,8 @@ save_idx <- 0
 
 while (save_idx < total_samples) {
   # Sample current omega
-  rep_r <- rep(curr_r, ncol(Yin))
-  b_it = as.vector(Yin) + rep_r
+  rep_r <- rep(curr_r, ncol(Yin[,-1]))
+  b_it = as.vector(Yin[,-1]) + rep_r
   kappa_it = rep_r - b_it/2
   curr_psi = sparse_design %*% curr_eta
   curr_omega <- mapply(function(b, z) rpg(1, h = b, z = z), b_it, as.numeric(curr_psi))
@@ -153,7 +152,7 @@ while (save_idx < total_samples) {
     curr_r_school <- curr_r[m]
     d <- min(curr_r_school, dd)
     new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
-    curr_idx_school <- m + (0:(ncol(Yin)-1))*nrow(schoolsM)
+    curr_idx_school <- m + (0:(ncol(Yin)-2))*nrow(schoolsM)
     curr_p_school <- curr_p_all[curr_idx_school]
     curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,], p = curr_p_school)
     new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,], p = curr_p_school)

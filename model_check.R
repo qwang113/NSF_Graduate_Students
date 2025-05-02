@@ -1,5 +1,5 @@
 rm(list = ls())
-schools <- read.csv(here::here("nsf_final_wide_car.csv"))
+schools <- read.csv("C:/Users/lix23/Desktop/NSF_Graduate_Students/nsf_final_wide_car.csv")
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 schoolsM <- as.matrix(schools[,10:59])
 
@@ -12,7 +12,7 @@ single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")
 ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")
 
 # Calculate prediction means
-int_mean <- apply(int_pred, c(1,2), mean)
+int_mean <- apply(int_pred[,,-1], c(1,2), mean)
 sep_mean <- apply(sep_pred, c(1,2), mean)
 randsl_mean <- apply(randsl_pred, c(1,2),mean)
 ingarch_mean <- ingarch_pred[1,,]
@@ -20,13 +20,10 @@ single_esn_mean <- t(single_esn_pred)
 ensemble_esn_mean <- apply(ensemble_esn_pred, c(1,2), mean)
 
 # Generate prediction samples
-
-# int_samples <- array(rpois(length(int_pred), lambda = int_pred), dim = dim(int_pred))
-int_samples <- array(rnbinom(length(int_pred), size = 10, p = 10/(int_pred+10)), dim = dim(int_pred))
+int_samples <- array(rnbinom(length(int_pred[,,-1]), size = 10, p = 10/(int_pred[,,-1]+10)), dim = dim(int_pred))
 sep_samples <- array(rpois(length(sep_pred), lambda = sep_pred), dim = dim(sep_pred))
 randsl_samples <- array(rpois(length(randsl_pred), lambda = randsl_pred), dim = dim(randsl_pred))
 ensemble_esn_samples <- array(rpois(length(ensemble_esn_pred), lambda = ensemble_esn_pred), dim = dim(ensemble_esn_pred))
-# ingarch_samples <- array(rpois(length(ingarch_pred[1,,]), lambda = ingarch_pred[1,,]), dim = dim(ingarch_pred[1,,]))
 
 # Calculate quantiles
 alpha <- 0.05

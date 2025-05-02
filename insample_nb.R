@@ -154,8 +154,8 @@ while (save_idx < total_samples) {
     new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
     curr_idx_school <- m + (0:(ncol(Yin)-2))*nrow(schoolsM)
     curr_p_school <- curr_p_all[curr_idx_school]
-    curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,], p = curr_p_school)
-    new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,], p = curr_p_school)
+    curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,-1], p = curr_p_school)
+    new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,-1], p = curr_p_school)
     p_trans <- exp(new_llh-curr_llh)
     l <- runif(1)
     curr_r[m] <- ifelse(l<p_trans, new_r_school, curr_r_school)
@@ -189,13 +189,13 @@ while (save_idx < total_samples) {
 
   }
   pred <- pred_all_insample[,save_idx]
-  true_value <- as.vector(schoolsM)
+  true_value <- as.vector(schoolsM[,-1])
   mse <- mean((pred-true_value)^2)
   print(paste(years,curr_idx,mse))
 }
 pred_mean = apply(pred_all_insample,1,mean)
 pred_mean <- matrix(pred_mean, nrow = nrow(schoolsM))
-pred_res <- pred_mean - schoolsM
+pred_res <- pred_mean - schoolsM[,-1]
 
 pred_p <- 1/(pred_mean/curr_r + 1)
 xt_var <- pred_mean * 1/pred_p
@@ -203,3 +203,4 @@ xt_var <- pred_mean * 1/pred_p
 st <- pred_res/sqrt(xt_var)
 
 saveRDS(pred_all_insample, file="insample_nb.Rda")
+saveRDS(rr, file = "rr.Rda")

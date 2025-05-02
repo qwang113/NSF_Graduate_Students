@@ -91,7 +91,7 @@ y_tr <- as.vector(Yin[,-1])
 tilde_eta <- matrix(NA, ncol = total_samples, nrow = ncol(design_mat))
 sig_xi_inv <- rep(NA, total_samples)
 sep_eta_pred <- matrix(NA, nrow = nrow(schoolsM), ncol = total_samples)
-insample_pred <- matrix(NA, nrow = length(schoolsM), ncol = total_samples)
+insample_pred <- matrix(NA, nrow = length(schoolsM[,-1]), ncol = total_samples)
 # Bayesian - Random Slope Model ----------------------------------------------------------------------------------------  
 
 pb <- txtProgressBar(min = 0, max = nrow(H$train_h), style = 3)
@@ -182,13 +182,13 @@ while (save_idx < total_samples) {
     plot(x = 1:save_idx, y = 1/sig_eta_inv[1:save_idx], type = 'l', main = "sig eta", xlab = "")
   } 
   pred <- insample_pred[,save_idx]
-  true_value <- as.vector(schoolsM)
+  true_value <- as.vector(schoolsM[,-1])
   mse <- mean((pred-true_value)^2)
   print(paste(years,curr_idx,mse))
 }
 
 pred_mean<- matrix(apply(insample_pred, 1, mean), nrow = nrow(schoolsM))
-pred_res <- pred_mean - schoolsM
+pred_res <- pred_mean - schoolsM[,-1]
 xt_var <- pred_mean
 st <- pred_res/sqrt(xt_var)
 var(as.vector(st))

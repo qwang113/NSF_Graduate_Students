@@ -11,19 +11,27 @@ ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")
 single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")
 ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")
 
+all_r <- readRDS("D:/77/Research/temp/all_rr.Rda")
+arr_r <- simplify2array(all_r)
+arr_r_new <- aperm(arr_r, perm = c(3, 1, 2))
 # Calculate prediction means
+ingarch_mean <- ingarch_pred[1,,]
+single_esn_mean <- t(single_esn_pred)
+
+
 int_mean <- apply(int_pred[,,-1], c(1,2), mean)
 sep_mean <- apply(sep_pred, c(1,2), mean)
 randsl_mean <- apply(randsl_pred, c(1,2),mean)
-ingarch_mean <- ingarch_pred[1,,]
-single_esn_mean <- t(single_esn_pred)
 ensemble_esn_mean <- apply(ensemble_esn_pred, c(1,2), mean)
 
 # Generate prediction samples
-int_samples <- array(rnbinom(length(int_pred[,,-1]), size = 10, p = 10/(int_pred[,,-1]+10)), dim = dim(int_pred))
+int_samples <- array(rnbinom(length(int_pred[,,-1]), size = arr_r_new[,,-1], p = arr_r_new[,,-1]/(int_pred[,,-1]+arr_r_new[,,-1])), dim = dim(int_pred))
 sep_samples <- array(rpois(length(sep_pred), lambda = sep_pred), dim = dim(sep_pred))
 randsl_samples <- array(rpois(length(randsl_pred), lambda = randsl_pred), dim = dim(randsl_pred))
 ensemble_esn_samples <- array(rpois(length(ensemble_esn_pred), lambda = ensemble_esn_pred), dim = dim(ensemble_esn_pred))
+
+
+
 
 # Calculate quantiles
 alpha <- 0.05
@@ -102,7 +110,7 @@ for (i in 1:5) {
   IS[1,i] <- mean(int_score(l = ingarch_low[i,], u = ingarch_up[i,], true_x = curr_true, alpha = alpha))
   IS[2,i] <- mean(all_interval_score(prediction_sample = ensemble_esn_pred[i,,], alpha = alpha, true_x = curr_true))
   IS[3,i] <- mean(all_interval_score(prediction_sample = sep_pred[i,,], alpha = alpha, true_x = curr_true))
-  IS[4,i] <- mean(all_interval_score(prediction_sample = int_pred[i,,], alpha = alpha, true_x = curr_true))
+  IS[4,i] <- mean(all_interval_score(prediction_sample = int_pred[i,,-1], alpha = alpha, true_x = curr_true))
   IS[5,i] <- mean(all_interval_score(prediction_sample = randsl_pred[i,,], alpha = alpha, true_x = curr_true))
   
   
@@ -119,10 +127,10 @@ all_lmse[,ncol(all_mse)] <- apply(all_lmse[,-ncol(all_lmse)],1,mean)
 IS[,ncol(IS)] <- apply(IS[,-ncol(IS)],1,mean)
 ICR[,ncol(ICR)] <- apply(ICR[,-ncol(ICR)],1,mean)
 
-rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
-rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
-rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
-rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Separate Poisson Bayesian ESN","Random Slope Bayesian NB ESN","Random Slope Bayesian Poisson ESN")
+rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
+rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
+rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
+rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
 colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- c(2017:2021,"5 Year Average")
 
 knitr::kable(all_mse, format = "latex", align = 'c',digits = 0)

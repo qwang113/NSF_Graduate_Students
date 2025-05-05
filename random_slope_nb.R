@@ -40,8 +40,8 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 500
-thin = 2
+burn = 0
+thin = 1
 years_to_pred = 46:50
 alpha_eta = 0.001
 beta_eta = 0.001
@@ -51,9 +51,9 @@ eps = 1 # Avoid underflow, avoid log(0)
 
 
 # ESN Parameters
-nh = 30
-nu = 0.9
-aw = au = 0.01
+nh = 50
+nu = 0.1
+aw = au = 0.1
 pw = pu = 0.1
 ns = length(unique(schools$state))
 N = length(unique(schools$UNITID))

@@ -15,8 +15,8 @@ setwd("D:/77/Research/temp/")
 pred_nb <- readRDS("insample_nb.Rda")
 nb_mean = apply(pred_nb,1,mean)
 nb_mean <- matrix(nb_mean, nrow = nrow(schoolsM))
-nb_res <- nb_mean - schoolsM
-curr_r <- apply(readRDS(here::here("rr.Rda")),1, mean)
+nb_res <- nb_mean - schoolsM[,-1]
+curr_r <- apply(readRDS("rr.Rda"),1, mean)
 pred_p <- 1/(nb_mean/curr_r + 1)
 xt_var_nb <- nb_mean * 1/pred_p
 st_nb <- nb_res/sqrt(xt_var_nb)
@@ -34,7 +34,7 @@ pred_pois <- readRDS("insample_pois.Rda")
 pois_mean = apply(pred_pois,1,mean)
 pois_mean <- matrix(pois_mean, nrow = nrow(schoolsM))
 xt_var_pois <- pois_mean
-pois_res <- pois_mean - schoolsM
+pois_res <- pois_mean - schoolsM[,-1]
 st_pois <- pois_res/sqrt(xt_var_pois)
 test_pvalue_pois = test_statistic_pois = rep(NA, nrow(st_pois))
 for (i in 1:nrow(st_pois)) {
@@ -187,7 +187,7 @@ ggplot(df, aes(x = Year, y = Counts, group = group)) +
 resis_diff <- schoolsM[,46:50] - schoolsM[,45:49]
 dd <- matrix(rpois(length(schoolsM[,46:50]), schoolsM[,46:50]), nrow = nrow(schoolsM), ncol = 5)
 
-apply((dd - schoolsM[,45:49])^2, 2, mean)
+apply((resis_diff)^2, 2, mean)
 
 
 resis_ldiff <- log(schoolsM[,46:50]+1) - log(schoolsM[,45:49]+1)

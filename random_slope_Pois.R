@@ -40,7 +40,7 @@ ESN_expansion <- function(Xin = matrix(0,), Yin, Xpred, nh=100, nu=0.8, aw=0.1, 
   Uy <- matrix(runif(nh, min = -au, max = au), nrow = nh) * matrix(rbinom(nh,1,1-pu), ncol = 1)
   H <- tmp <- matrix(0, nrow = nrow(schoolsM), ncol=nh)
   for(i in 2:ncol(Yin)){
-    tmp_new <- tanh(tmp%*%W + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
+    tmp_new <- 0.1*H[(nrow(H)-nrow(tmp)+1):nrow(H), ] + 0.9*tanh(tmp%*%W + matrix(log(Yin[,i-1] + eps), ncol = 1 ) %*% t(Uy) ) 
     tmp <- tmp_new
     H <- rbind(H, tmp_new)
   }
@@ -53,8 +53,8 @@ state_idx <- model.matrix( ~ factor(state) -1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 500
-thin = 2
+burn = 0
+thin = 1
 alpha = 1000
 years_to_pred <- 46:50
 # years = years_to_pred
@@ -64,9 +64,9 @@ eps = 1 # Avoid underflow, avoid log(0)
 
 
 # ESN Parameters
-nh = 30
+nh = 50
 nu = 0.9
-aw = au = 0.01
+aw = au = 0.1
 pw = pu = 0.1
 ns = length(unique(schools$state))
 

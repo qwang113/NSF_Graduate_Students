@@ -40,7 +40,7 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 100
+burn = 0
 thin = 2
 years_to_pred = 46:50
 alpha_eta = 0.001
@@ -151,7 +151,8 @@ while (save_idx < total_samples) {
   for (m in 1:nrow(schoolsM)) {
     curr_r_school <- curr_r[m]
     d <- min(curr_r_school, dd)
-    new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
+    # new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
+    new_r_school <- exp(rnorm(1, log(curr_r_school),1))
     curr_idx_school <- m + (0:(ncol(Yin)-2))*nrow(schoolsM)
     curr_p_school <- curr_p_all[curr_idx_school]
     curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,-1], p = curr_p_school)

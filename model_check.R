@@ -88,7 +88,7 @@ all_interval_score <- function(prediction_sample, alpha = 0.05, true_x){
 
 for (i in 1:5) {
   curr_true <- schoolsM[,45+i]
-  all_mse[1,i] <- var(curr_true)
+  all_mse[1,i] <- mean((curr_true - apply(schoolsM[,(1:(44+i))],1,mean))^2)
   all_mse[2,i] <- mean((ingarch_mean[i,] - curr_true)^2)  
   all_mse[3,i] <- mean((single_esn_mean[i,] - curr_true)^2)
   all_mse[4,i] <- mean((ensemble_esn_mean[i,] - curr_true)^2)
@@ -98,7 +98,7 @@ for (i in 1:5) {
   
   
   lg_curr_true <- log(curr_true+1)
-  all_lmse[1,i] <- var(lg_curr_true)
+  all_lmse[1,i] <- mean((lg_curr_true - apply(log(schoolsM[,(1:(44+i))]+1),1,mean))^2)
   all_lmse[2,i] <- mean((log(ingarch_mean[i,]+1) - lg_curr_true)^2)  
   all_lmse[3,i] <- mean((log(single_esn_mean[i,]+1) - lg_curr_true)^2)
   all_lmse[4,i] <- mean((log(ensemble_esn_mean[i,]+1) - lg_curr_true)^2)

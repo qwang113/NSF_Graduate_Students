@@ -49,8 +49,8 @@ eps = 1 # Avoid underflow, avoid log(0)
 
 # ESN Parameters
 nh = 120
-nu = 0.9
-aw = au = 0.1
+all_nu = c(0.9,0.1,0.9,0.1,0.9)
+all_a = c(0.01,0.01,0.01,0.1,0.01)
 pw = pu = 0.1
 reps = 1000
 
@@ -59,6 +59,9 @@ reps = 1000
 pred_all_sep <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
 
 for (years in years_to_pred) {
+  
+  nu <- all_nu[years-45]
+  aw = au = all_a[years-45]
   # Set up hypeparameters for ESN
   Xin <- Xpred <- model.matrix( ~ factor(state) -1, data = schools)
   Yin <- schoolsM[,1:(years-1)]
@@ -70,7 +73,7 @@ for (years in years_to_pred) {
   n <- ncol(Yin[,-1])
   # Repeat the matrix and bind by rows
   repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
-  design_mat <- cbind(H$train_h, repeated_state)
+  design_mat <- cbind(H$train_h, as.vector(log(schoolsM[,1:(years-2)]+1)))
   
   
   # Input Data
@@ -88,18 +91,18 @@ for (years in years_to_pred) {
     for (i in 1:nrow(schoolsM)) {
       # curr_idx_h <- seq(from = i, to = i + nrow(schoolsM)*(nrow(H$train_h)/nrow(schoolsM) - 1), by = nrow(schoolsM))
       curr_idx_h <- i + (0:(years - 3))*nrow(schoolsM)
-      curr_H <- H$train_h[curr_idx_h,]
-      curr_H_sep <- rbind(curr_H,alpha^{-1/2}*diag(rep(sig_eta_inv,nh)))
+      curr_H <- design_mat[curr_idx_h,]
+      curr_H_sep <- rbind(curr_H,alpha^{-1/2}*diag(rep(sig_eta_inv,nh+1)))
       curr_y <- Yin[i,2:(years-1)]
-      curr_alpha <- matrix(c(curr_y+eps, rep(alpha,nh)), ncol = 1)
-      curr_kappa <- matrix(c(rep(1, ncol(Yin[,-1])), rep(alpha, nh)), ncol = 1)
+      curr_alpha <- matrix(c(curr_y+eps, rep(alpha,nh+1)), ncol = 1)
+      curr_kappa <- matrix(c(rep(1, ncol(Yin[,-1])), rep(alpha, nh+1)), ncol = 1)
       curr_pos_eta <- rCMLG(H = curr_H_sep, alpha = curr_alpha, kappa = curr_kappa)
-      sep_eta_pred[i,idx] <- exp(H$pred_h[i,] %*% curr_pos_eta)
+      sep_eta_pred[i,idx] <- exp( c(H$pred_h[i,],log(schoolsM[i,years-1]+1)) %*% curr_pos_eta)
     }
     print(mean((sep_eta_pred[,idx]-schoolsM[,years])^2))
   }
   
   pred_all_sep[years-min(years_to_pred)+1,,] <- sep_eta_pred
 }
-
+setwd("D:/77/Research/temp")
 saveRDS(pred_all_sep, file="pred_all_sep.Rda")

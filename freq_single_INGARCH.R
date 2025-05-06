@@ -33,8 +33,8 @@ eps = 1 # Avoid underflow, avoid log(0)
 
 # ESN Parameters
 nh = 30
-nu = 0.9
-aw = au = 0.01
+all_nu = c(0.9,0.1,0.9,0.1,0.9)
+all_a = c(0.01,0.01,0.01,0.1,0.01)
 pw = pu = 0.1
 
 # Penalization parameter for Lasso/Ridge for ESN in frequentist view
@@ -51,6 +51,8 @@ pred_all_ING <-  array(NA, dim = c(3,length(years_to_pred), nrow(schoolsM)))
 
 
 for (years in years_to_pred) {
+    nu <- all_nu[years-45]
+    aw = au = all_a[years-45]
   # Set up hypeparameters for ESN
   Xin <- Xpred <- model.matrix( ~ factor(state) -1, data = schools)
   Yin <- schoolsM[,1:(years-1)]
@@ -62,7 +64,7 @@ for (years in years_to_pred) {
   n <- ncol(Yin[,-1])
   # Repeat the matrix and bind by rows
   repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
-  design_mat <- cbind(H$train_h, repeated_state)
+  design_mat <- cbind(H$train_h,log(as.vector(schoolsM[,1:(years-2)])+1))
   
   
   # Input Data
@@ -74,26 +76,27 @@ for (years in years_to_pred) {
   for (school_idx in 1:nrow(schoolsM)) {
     print(paste(years,school_idx,"Single ESN"))
     curr_idx_h <- school_idx + (0:(years - 3))*nrow(schoolsM)
-    curr_H <- H$train_h[curr_idx_h,]
+    curr_H <- design_mat[curr_idx_h,]
     curr_y <- y_tr[curr_idx_h]
     fit_fesn <- glmnet(x = curr_H, y = curr_y, family = "poisson", alpha = 1, lambda = 1)
-    pred_all_single_esn[school_idx,years - min(years_to_pred) + 1] <- predict(fit_fesn, newx = H$pred_h[school_idx,], type = "response") 
+    pred_all_single_esn[school_idx,years - min(years_to_pred) + 1] <- predict(fit_fesn, newx = c(H$pred_h[school_idx,],log(schoolsM[school_idx,years-1]+1)), type = "response") 
   }
   print(mean((pred_all_single_esn[,1] - schoolsM[,46])^2))
   
   # Frequentist - INGARCH(1,1) ----------------------------------------------------------------------------------------  
-  for (k in 1:nrow(schoolsM)) {
-    print(paste(years,k,"INGARCH"))
-    tmp_ingarch <- tsglm(Yin[k,1:(years-1)], model = list(past_obs = 1, past_mean = 1), dist = "poisson")
-    pred_all_ING[1,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$pred
-    pred_all_ING[2,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[1]
-    pred_all_ING[3,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[2]
-  }
+  # for (k in 1:nrow(schoolsM)) {
+  #   print(paste(years,k,"INGARCH"))
+  #   tmp_ingarch <- tsglm(Yin[k,1:(years-1)], model = list(past_obs = 1, past_mean = 1), dist = "poisson")
+  #   pred_all_ING[1,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$pred
+  #   pred_all_ING[2,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[1]
+  #   pred_all_ING[3,years - min(years_to_pred) + 1,k] <- predict(tmp_ingarch, n.ahead = 1)$interval[2]
+  # }
   
 }
 
+setwd("D:/77/Research/temp")
 saveRDS(pred_all_single_esn, file="pred_all_single_esn.Rda")
-saveRDS(pred_all_ING, file = "pred_all_ING.Rda")
+# saveRDS(pred_all_ING, file = "pred_all_ING.Rda")
 
 
 # write.csv(tilde_eta, here::here("eta.csv"), row.names = FALSE)

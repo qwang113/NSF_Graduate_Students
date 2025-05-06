@@ -40,19 +40,19 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 0
-thin = 1
+burn = 500
+thin = 2
 years_to_pred = 46:50
-alpha_eta = 0.001
-beta_eta = 0.001
-alpha_xi = 0.001
-beta_xi = 0.001
+alpha_eta = 0.01
+beta_eta = 0.01
+alpha_xi = 1
+beta_xi = 1
 eps = 1 # Avoid underflow, avoid log(0)
 
 
 # ESN Parameters
-nh = 50
-nu = 0.1
+nh = 30
+nu = 0.9
 aw = au = 0.1
 pw = pu = 0.1
 ns = length(unique(schools$state))
@@ -70,12 +70,11 @@ for(years in years_to_pred){
   
   # Generate H
   H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
-  
   # Number of times to repeat
   n <- ncol(Yin[,-1])
   # Repeat the matrix and bind by rows
   repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
-  design_mat <- cbind(H$train_h, repeated_state)
+  design_mat <- cbind(H$train_h, repeated_state, log(as.vector(schoolsM[,1:(years-2)]+1) ))
   
   # Input Data
   nh <- dim(H$train_h)[2]
@@ -108,8 +107,8 @@ for(years in years_to_pred){
   sig_eta <- rep(NA, total_samples)
   curr_r = rep(20, nrow(schoolsM))
   curr_eta <- matrix(0,nrow = dim(design_here)[2], ncol = 1)
-  curr_sig_xi <- .1
-  curr_sig_eta <- .1
+  curr_sig_xi <- 5
+  curr_sig_eta <- 100
   curr_omega <- rep(1, length(Yin[,-1]))
 
   prior_mu_eta <- rep(0, dim(design_here)[2])
@@ -181,11 +180,11 @@ for(years in years_to_pred){
       random_slope_pred[,save_idx] <- curr_r * (1-curr_p)/curr_p
       # pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
       
-      # par(mfrow = c(3,1), mar = c(2,2,2,2))
+      par(mfrow = c(3,1), mar = c(2,2,2,2))
       # plot(x = 1:save_idx, y = sig_xi_inv[1:save_idx], type = 'l', main = "sig xi inv", xlab = "")
-      # plot(x = 1:save_idx, y = sig_xi[1:save_idx], type = 'l', main = "sig xi", xlab = "")
+      plot(x = 1:save_idx, y = sig_xi[1:save_idx], type = 'l', main = "sig xi", xlab = "")
       # plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv", xlab = "")
-      # plot(x = 1:save_idx, y = sig_eta[1:save_idx], type = 'l', main = "sig eta", xlab = "")
+      plot(x = 1:save_idx, y = sig_eta[1:save_idx], type = 'l', main = "sig eta", xlab = "")
       boxplot(apply(rr, 1, mean, na.rm = TRUE))
       
     } 

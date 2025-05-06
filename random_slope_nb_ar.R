@@ -5,6 +5,7 @@ library(glmnet)
 library(tscount)
 library(ggplot2)
 library(BayesLogit)
+library(sparseMVN)
 set.seed(0)
 schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 # %>% filter(state%in%c("CA","OH","TX","WI","IL"))
@@ -40,19 +41,25 @@ school_idx <- model.matrix( ~ factor(UNITID) - 1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 0
-thin = 1
+burn = 500
+thin = 2
 years_to_pred = 46:50
-alpha_eta = beta_eta = 0.001
-alpha_xi = beta_xi = 0.001
+
 eps = 1 # Avoid underflow, avoid log(0)
 
-
-# ESN Parameters
 nh = 30
-nu = 0.9
-aw = au = 0.01
 pw = pu = 0.1
+alpha_xi = beta_xi = 0.001
+alpha_eta = beta_eta = 10
+
+
+
+all_nu = c(0.1,0.9,0.1,0.1,0.9)
+all_a = c(0.1,1,1,0.01,1)
+all_ab_eta = c(10,10,10,1,10)
+
+
+
 ns = length(unique(schools$state))
 N = length(unique(schools$UNITID))
 
@@ -60,8 +67,10 @@ N = length(unique(schools$UNITID))
 
 pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
 
-for(years in years_to_pred[4]){
-  
+for(years in years_to_pred){
+  nu <- all_nu[years-45]
+  aw = au = all_a[years-45]
+  alpha_eta = beta_eta = all_ab_eta[years-45]
   # Set up hypeparameters for ESN
   Xin <- Xpred <- school_idx
   Yin <- schoolsM[,(1:(years-1))]
@@ -124,40 +133,41 @@ for(years in years_to_pred[4]){
     
     # Sample current eta
     curr_B <- Matrix(diag(c(rep(curr_sig_eta, (nh+1)*ns), rep(curr_sig_xi, ns))),sparse = TRUE)
-    pos_sigma_eta <- solve(t(sparse_design)%*%Diagonal(length(curr_omega), curr_omega)%*%(sparse_design)  + solve(curr_B))
-    pos_mu_eta <- pos_sigma_eta%*%(t(sparse_design)%*%kappa_it)
     
-    L <- chol(pos_sigma_eta)
+    pos_sigma_eta_inv <- t(sparse_design)%*%Diagonal(length(curr_omega), curr_omega)%*%(sparse_design)  + solve(curr_B)
+    CH <- Cholesky(pos_sigma_eta_inv , LDL = FALSE)
+    b <- t(sparse_design) %*% kappa_it
+    pos_mu_eta <- solve(CH,b)
     sth <- rnorm(length(pos_mu_eta))
-    curr_eta <- t(L) %*% sth + pos_mu_eta
+    curr_eta <- matrix(rmvn.sparse(1, mu = pos_mu_eta, CH = CH, prec = TRUE), ncol = 1)
     # curr_eta <- as.vector(mvtnorm::rmvnorm(1, mean = pos_mu_eta, sigma = as.matrix(pos_sigma_eta)))
     
     # Propose a sigma_eta
-    alpha_eta_pos = ns*nh/2+alpha_eta
-    beta_eta_pos = sum(curr_eta[1:(nh*ns)]^2/2)+beta_eta
+    alpha_eta_pos = ns*(nh+1)/2+alpha_eta
+    beta_eta_pos = sum(curr_eta[1:((nh+1)*ns)]^2/2)+beta_eta
     curr_sig_eta = 1/rgamma(1, shape = alpha_eta_pos,rate = beta_eta_pos)
     # curr_sig_eta = 2000
     
     # Propose a sigma_xi
     alpha_xi_pos = ns/2+alpha_xi
-    beta_xi_pos = sum(curr_eta[(nh*ns+1):length(curr_eta)]^2/2)+beta_xi
+    beta_xi_pos = sum(curr_eta[((nh+1)*ns+1):length(curr_eta)]^2/2)+beta_xi
     curr_sig_xi = 1/rgamma(1, shape = alpha_xi_pos,rate = beta_xi_pos)
     
     
     # Propose a dispersion parameter for each school
     curr_p_all <- as.numeric(exp(sparse_design%*%curr_eta)) / (1+as.numeric(exp(sparse_design%*%curr_eta)))
-    # for (m in 1:nrow(schoolsM)) {
-    #   curr_r_school <- curr_r[m]
-    #   d <- min(curr_r_school, dd)
-    #   new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
-    #   curr_idx_school <- m + (0:(ncol(Yin[,-1])-1))*nrow(schoolsM)
-    #   curr_p_school <- curr_p_all[curr_idx_school]
-    #   curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,-1], p = curr_p_school)
-    #   new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,-1], p = curr_p_school)
-    #   p_trans <- exp(new_llh-curr_llh)
-    #   l <- runif(1)
-    #   curr_r[m] <- ifelse(l<p_trans, new_r_school, curr_r_school)
-    # }
+    for (m in 1:nrow(schoolsM)) {
+      curr_r_school <- curr_r[m]
+      d <- min(curr_r_school, dd)
+      new_r_school <- runif(1, curr_r_school-d, curr_r_school+d)
+      curr_idx_school <- m + (0:(ncol(Yin[,-1])-1))*nrow(schoolsM)
+      curr_p_school <- curr_p_all[curr_idx_school]
+      curr_llh <- lg_pos_disp(r = curr_r_school,y = Yin[m,-1], p = curr_p_school)
+      new_llh <- lg_pos_disp(r = new_r_school,y = Yin[m,-1], p = curr_p_school)
+      p_trans <- exp(new_llh-curr_llh)
+      l <- runif(1)
+      curr_r[m] <- ifelse(l<p_trans, new_r_school, curr_r_school)
+    }
     
     curr_idx <- curr_idx + 1 
     # Save current values after burn and thin
@@ -173,6 +183,7 @@ for(years in years_to_pred[4]){
       # Loop through each row and update the progress bar
       for (j in 1:nrow(transformed_H_pred)) {
         transformed_H_pred[j, ] <- as.vector(outer(c(H$pred_h[j, ], log(schoolsM[j,years-1]+1) ), repeated_state[j, ], "*"))
+        # transformed_H_pred[j, ] <- as.vector(outer(c(H$pred_h[j, ]), repeated_state[j, ], "*"))
       }
       pred_here <- cbind(transformed_H_pred, state_idx)
       curr_p <- as.numeric(exp(pred_here%*%curr_eta)) / (1+as.numeric(exp(pred_here%*%curr_eta)))

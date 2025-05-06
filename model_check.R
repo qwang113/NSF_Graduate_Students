@@ -1,9 +1,9 @@
 rm(list = ls())
-schools <- read.csv("C:/Users/lix23/Desktop/NSF_Graduate_Students/nsf_final_wide_car.csv")
+schools <- read.csv(here::here("nsf_final_wide_car.csv"))
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 schoolsM <- as.matrix(schools[,10:59])
 
-int_pred <- readRDS("D:/77/Research/temp/pred_all_randsl_sch.Rda")
+int_pred <- readRDS(here::here("pred_all_randsl_sch.Rda"))
 sep_pred <- readRDS("D:/77/Research/temp/pred_all_sep.Rda")
 randsl_pred <- readRDS("D:/77/Research/temp/pred_all_randsl.Rda")
 
@@ -11,7 +11,7 @@ ingarch_pred <- readRDS("D:/77/Research/temp/pred_all_ING.Rda")
 single_esn_pred <- readRDS("D:/77/Research/temp/pred_all_single_esn.Rda")
 ensemble_esn_pred <- readRDS("D:/77/Research/temp/pred_all_ensemble_esn.Rda")
 
-all_r <- readRDS("D:/77/Research/temp/all_rr.Rda")
+all_r <- readRDS(here::here("all_rr.Rda"))
 arr_r <- simplify2array(all_r)
 arr_r_new <- aperm(arr_r, perm = c(3, 1, 2))
 # Calculate prediction means

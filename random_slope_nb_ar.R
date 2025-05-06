@@ -54,9 +54,9 @@ alpha_eta = beta_eta = 10
 
 
 
-all_nu = c(0.1,0.9,0.1,0.1,0.9)
-all_a = c(0.1,1,1,0.01,1)
-all_ab_eta = c(10,10,10,1,10)
+all_nu = c(0.1,0.9,0.1,0.1,0.1)
+all_a = c(0.1,1,1,0.01,0.1)
+all_ab_eta = c(10,10,10,1,0.1)
 
 
 
@@ -65,9 +65,9 @@ N = length(unique(schools$UNITID))
 
 # Initialization
 
-pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
+pred_all_randslp <- readRDS("D:/77/Research/temp/pred_all_randsl.Rda")
 
-for(years in years_to_pred){
+for(years in years_to_pred[5]){
   nu <- all_nu[years-45]
   aw = au = all_a[years-45]
   alpha_eta = beta_eta = all_ab_eta[years-45]

@@ -61,7 +61,7 @@ N = length(unique(schools$UNITID))
 # Initialization
 
 pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
-
+all_rr <- list()
 for(years in years_to_pred){
   
   # Set up hypeparameters for ESN
@@ -181,14 +181,15 @@ for(years in years_to_pred){
       random_slope_pred[,save_idx] <- curr_r * (1-curr_p)/curr_p
       # pred_all_randslp[years-min(years_to_pred)+1,,] <- random_slope_pred
       
-      par(mfrow = c(3,1), mar = c(2,2,2,2))
+      # par(mfrow = c(3,1), mar = c(2,2,2,2))
       # plot(x = 1:save_idx, y = sig_xi_inv[1:save_idx], type = 'l', main = "sig xi inv", xlab = "")
-      plot(x = 1:save_idx, y = sig_xi[1:save_idx], type = 'l', main = "sig xi", xlab = "")
+      # plot(x = 1:save_idx, y = sig_xi[1:save_idx], type = 'l', main = "sig xi", xlab = "")
       # plot(x = 1:save_idx, y = sig_eta_inv[1:save_idx], type = 'l', main = "sig eta inv", xlab = "")
-      plot(x = 1:save_idx, y = sig_eta[1:save_idx], type = 'l', main = "sig eta", xlab = "")
+      # plot(x = 1:save_idx, y = sig_eta[1:save_idx], type = 'l', main = "sig eta", xlab = "")
       boxplot(apply(rr, 1, mean, na.rm = TRUE))
       
     } 
+    all_rr[[years-45]] <- rr
     pred <- random_slope_pred[,save_idx]
     true_value <- schoolsM[,years]
     mse <- mean((pred-true_value)^2)
@@ -200,4 +201,4 @@ for(years in years_to_pred){
 
 
 saveRDS(pred_all_randslp, file="pred_all_randsl_sch.Rda")
-saveRDS(rr, file="rr.Rda")
+saveRDS(all_rr, file = "all_rr.Rda")

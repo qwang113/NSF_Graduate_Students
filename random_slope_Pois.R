@@ -53,7 +53,7 @@ state_idx <- model.matrix( ~ factor(state) -1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 50
+burn = 500
 thin = 2
 alpha = 1000
 years_to_pred <- 46:50

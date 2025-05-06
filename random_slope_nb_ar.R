@@ -58,8 +58,6 @@ all_nu = c(0.1,0.9,0.1,0.1,0.1)
 all_a = c(0.1,1,1,0.01,0.1)
 all_ab_eta = c(10,10,10,1,0.1)
 
-
-
 ns = length(unique(schools$state))
 N = length(unique(schools$UNITID))
 

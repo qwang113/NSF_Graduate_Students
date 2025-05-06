@@ -53,8 +53,8 @@ state_idx <- model.matrix( ~ factor(state) -1, data = schools)
 
 # MCMC parameters
 total_samples <- 1000
-burn = 0
-thin = 1
+burn = 50
+thin = 2
 alpha = 1000
 years_to_pred <- 46:50
 # years = years_to_pred
@@ -151,8 +151,8 @@ for(years in years_to_pred){
     
     # Propose a sigma_xi
     d <- min(0.5, 1/curr_sig_xi_inv)
-    temp_sig_xi_inv <- 1/runif(1, min = 1/curr_sig_xi_inv-d, max = 1/curr_sig_xi_inv+d)
-    # temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 1))
+    # temp_sig_xi_inv <- 1/runif(1, min = 1/curr_sig_xi_inv-d, max = 1/curr_sig_xi_inv+d)
+    temp_sig_xi_inv <- exp(rnorm(1,mean = log(curr_sig_xi_inv), sd = 1))
     # Metropolis-hastings
     prev_loglike <- pos_sig_xi(sig_xi =  1/curr_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
     curr_loglike <- pos_sig_xi(sig_xi = 1/temp_sig_xi_inv, xi = curr_eta[(length(curr_eta)-ns+1):length(curr_eta)], alpha = alpha)
@@ -164,8 +164,8 @@ for(years in years_to_pred){
     
     # Propose a sigma_eta
     d <- min(1, 1/curr_sig_eta_inv)
-    temp_sig_eta_inv <- 1/runif(1, min = 1/curr_sig_eta_inv-d, max = 1/curr_sig_eta_inv+d)
-    # temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 1))
+    # temp_sig_eta_inv <- 1/runif(1, min = 1/curr_sig_eta_inv-d, max = 1/curr_sig_eta_inv+d)
+    temp_sig_eta_inv <- exp(rnorm(1,mean = log(curr_sig_eta_inv), sd = 1))
     # Metropolis-hastings
     prev_loglike <- pos_sig_eta(sig_eta =  1/curr_sig_eta_inv, eta_trunc = curr_eta[1:(ns*(nh+1))], alpha = alpha)
     curr_loglike <- pos_sig_eta(sig_eta = 1/temp_sig_eta_inv, eta_trunc = curr_eta[1:(ns*(nh+1))], alpha = alpha)

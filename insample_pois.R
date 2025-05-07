@@ -80,7 +80,7 @@ H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, 
 n <- ncol(Yin[,-1])
 # Repeat the matrix and bind by rows
 repeated_state <- do.call(rbind, replicate(n, state_idx, simplify = FALSE))
-design_mat <- cbind(H$train_h, repeated_state)
+design_mat <- cbind(H$train_h, as.vector(log(schoolsM[,1:(years-2)]+1)) )
 
 # Input Data
 nh <- dim(H$train_h)[2]
@@ -96,11 +96,11 @@ insample_pred <- matrix(NA, nrow = length(schoolsM[,-1]), ncol = total_samples)
 
 pb <- txtProgressBar(min = 0, max = nrow(H$train_h), style = 3)
 # Initialize the transformed matrix
-transformed_H <- matrix(NA, nrow = nrow(H$train_h), ncol = nh * ns)
+transformed_H <- matrix(NA, nrow = nrow(H$train_h), ncol = (nh+1) * ns)
 # Loop through each row and update the progress bar
 print("Transforming H to a huge matrix")
 for (j in 1:nrow(transformed_H)) {
-  transformed_H[j, ] <- as.vector(outer(H$train_h[j, ], repeated_state[j, ], "*"))
+  transformed_H[j, ] <- as.vector(outer(design_mat[j, ], repeated_state[j, ], "*"))
   setTxtProgressBar(pb, j)  # Update the progress bar
 }
 design_here <- cbind(transformed_H, repeated_state)
@@ -120,13 +120,13 @@ save_idx <- 0
 
 while (save_idx < total_samples) {
   # Define current H_eta
-  DIAG <- Matrix(diag(c(rep(curr_sig_eta_inv, nh*ns), rep(curr_sig_xi_inv, ns))),sparse = TRUE)
+  DIAG <- Matrix(diag(c(rep(curr_sig_eta_inv, (nh+1)*ns), rep(curr_sig_xi_inv, ns))),sparse = TRUE)
   curr_H_eta <- rbind(sparse_design, alpha^{-1/2}*DIAG)
   # curr_H_eta <- rbind(design_here, alpha^{-1/2}*diag(c(rep(curr_sig_eta_inv,nh*ns), rep(curr_sig_xi_inv,ns))))
   # Define current alpha_eta
   curr_alpha_eta <- matrix(c(y_tr+eps,rep(alpha,(nh+1)*ns)))
   # Define current kappa_eta
-  curr_kappa_eta <- c(rep(1,nrow(design_here)), rep(alpha,(nh+1)*ns))
+  curr_kappa_eta <- c(rep(1,nrow(design_here)), rep(alpha,(nh+2)*ns))
   
   # B <- 1/alpha * Matrix(diag(c(rep(curr_sig_eta_inv^2, nh*ns), rep(curr_sig_xi_inv^2, ns))),sparse = TRUE)
   # # Sample tilde eta

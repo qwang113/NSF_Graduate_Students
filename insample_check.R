@@ -72,6 +72,7 @@ zoomed_plot <- ggplot(long_data, aes(x = group, y = value, fill = group)) +
     y = "",
     x = ""
   ) +
+  theme_bw() +
   theme(
     plot.title = element_text(hjust = 0.5),  legend.position = "none"
   )
@@ -210,6 +211,7 @@ ggplot(df, aes(x = Year, y = Counts, color = group)) +
   geom_line(linewidth = 1.5) +
   scale_color_manual(values = c("lightpink", "lightblue")) +
   labs(color = "") +
+  theme_bw() +
   theme(legend.position = "bottom") +
   guides(color = guide_legend(nrow = 2))
 

@@ -1,3 +1,4 @@
+rm(list = ls())
 library(ggplot2)
 library(dplyr)
 library(purrr)
@@ -7,7 +8,6 @@ schoolsM <- as.matrix(schools[,10:59])
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 nb_pred <- readRDS("D:/77/Research/temp/pred_all_randsl_sch.Rda")
 set.seed(2)
-
 n <- 4
 idx <- floor(runif(n) * nrow(schoolsM)) 
 
@@ -17,7 +17,7 @@ df <- data.frame(
   Counts = as.vector(t(schoolsM[idx, ])),
   group = rep(
     sapply(idx, function(i) {
-      schools_name$INSTNM[which(schools_name$UNITID == schools$UNITID[i])]
+      paste(schools_name$INSTNM[which(schools_name$UNITID == schools$UNITID[i])],"   ")
     }),
     each = length(years)
   )
@@ -29,6 +29,7 @@ ggplot(df, aes(x = Year, y = Counts, color = group)) +
   geom_line(linewidth = 1.5) +
   scale_color_manual(values = c("red", "lightpink", "lightblue", "lightgreen")) +
   labs(color = "") +
+  theme_bw() +
   theme(legend.position = "bottom") +
   guides(color = guide_legend(nrow = 2))
 
@@ -56,6 +57,7 @@ plot_acf <- function(acf_df, title, col = "skyblue") {
     ggtitle(title) +
     ylab("ACF") +
     xlab("Lag") +
+    ylim(c(-1,1)) +
     scale_x_continuous(breaks = seq(0, max(acf_df$lag), by = 1)) +
     theme(plot.title = element_text(hjust = 0.5),panel.grid = element_blank() ) # Center the title
 }
@@ -88,16 +90,16 @@ idx <- factor(sample(1:nrow(schoolsM),n))
 years <- 1972:2021
 df <- data.frame(
   Year = rep(years, n),
-  Residuals = as.vector(t(st_nb[idx, ])),
+  Residuals = as.vector(t(schoolsM[idx, ])),
   group = factor(rep(idx, each = length(years)))
 )
 
 
 # Plot with ggplot
-ggplot(df, aes(x = Year, y = Residuals, color = group)) +
-  geom_line(linewidth = 0.5,alpha = 0.6) +
-  geom_hline(yintercept = 0, color = "red", linetype = "dashed", linewidth = 0.6) +
-  labs(color = "") +
+ggplot(df, aes(x = Year, y = Residuals, group = group)) +
+  geom_line(linewidth = 0.5,alpha = 0.25) +
+  labs(color = "", y = "Observed Counts") +
+  theme_bw() +
   theme(legend.position = "") +
   guides(color = guide_legend(nrow = 2))
 

@@ -14,7 +14,7 @@ rCMLG <- function(H=matrix(rnorm(6),3), alpha=c(1,1,1), kappa=c(1,1,1)){
   m <- length(kappa)
   w <- log(rgamma(m, shape=alpha, rate=kappa))
   sparse_H <- Matrix(H, sparse = TRUE)
-  return(as.numeric(solve( t(sparse_H)%*%sparse_H )%*%t(sparse_H)%*%w) + diag(1e-6, nrow = nrow(t(sparse_H)%*%sparse_H )%*%t(sparse_H)%*%w))
+  return(as.numeric(solve( t(sparse_H)%*%sparse_H + diag(rep(1e-6, ncol(H)), ncol = ncol(H)) )%*%t(sparse_H)%*%w))
 }
 
 pos_sig_xi <- function(sig_xi, xi, alpha){
@@ -78,7 +78,7 @@ all_a = c(0.01,0.01,0.01,0.1,0.01)
 
 pred_all_randslp <- array(NA, dim = c(length(years_to_pred), nrow(schoolsM),total_samples))
 
-for(years in years_to_pred[2:5]){
+for(years in years_to_pred){
   nu <- all_nu[years-45]
   aw = au = all_a[years-45]
   # Set up hypeparameters for ESN

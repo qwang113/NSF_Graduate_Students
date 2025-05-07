@@ -194,7 +194,7 @@ while (save_idx < total_samples) {
 
 nb_mean = apply(pred_all_insample,1,mean)
 nb_mean <- matrix(nb_mean, nrow = nrow(schoolsM))
-nb_res <- nb_mean - schoolsM
+nb_res <- nb_mean - schoolsM[,-1]
 curr_r <- apply(readRDS("rr.Rda"),1, mean)
 pred_p <- 1/(nb_mean/curr_r + 1)
 xt_var_nb <- nb_mean * 1/pred_p

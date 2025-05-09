@@ -129,11 +129,18 @@ all_lmse[,ncol(all_mse)] <- apply(all_lmse[,-ncol(all_lmse)],1,mean)
 IS[,ncol(IS)] <- apply(IS[,-ncol(IS)],1,mean)
 ICR[,ncol(ICR)] <- apply(ICR[,-ncol(ICR)],1,mean)
 
+all_mse <- cbind(all_mse,apply(all_mse[,1:5],1,sd))
+all_lmse <- cbind(all_lmse,apply(all_lmse[,1:5],1,sd))
+IS <- cbind(IS,apply(IS[,1:5],1,sd))
+ICR <- cbind(ICR,apply(ICR[,1:5],1,sd))
+
+
+
 rownames(all_mse) <- c("Intercept","Persistence","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
 rownames(all_lmse) <- c("Intercept","Persistence","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
 rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
 rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
-colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- c(2017:2021,"5 Year Average")
+colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- c(2017:2021,"Mean","SD")
 
 knitr::kable(all_mse, format = "latex", align = 'c',digits = 0)
 knitr::kable(all_lmse, format = "latex", align = 'c',digits = 3)

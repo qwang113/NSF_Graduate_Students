@@ -72,6 +72,7 @@ zoomed_plot <- ggplot(long_data, aes(x = group, y = value, fill = group)) +
     y = "",
     x = ""
   ) +
+  theme_bw() +
   theme(
     plot.title = element_text(hjust = 0.5),  legend.position = "none"
   )
@@ -87,7 +88,7 @@ combined_plot
 schools_name <- read.csv("D:/77/Research/temp/ins_loc.csv")
 df <- data.frame(
   year = rep(1973:2021, 4),
-  value = c(st_nb[idx[1],-1], st_nb[idx[2],-1], st_nb[idx[3],-1], st_nb[idx[4],-1]),
+  value = c(st_nb[idx[1],], st_nb[idx[2],], st_nb[idx[3],], st_nb[idx[4],]),
   group = rep(c(   schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[1]])]
                    ,  schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[2]])]
                    ,  schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[3]])]
@@ -100,27 +101,28 @@ ggplot(df, aes(x = year, y = value, color = group)) +
   geom_line(linewidth = 1) +
   scale_color_manual(values = c("red", "lightpink", "lightblue", "lightgreen")) +
   labs(color = "", y = 'Residuals') +
+  theme_bw() +
   theme(legend.position = "bottom") +
   guides(color = guide_legend(nrow = 2))
 
 
 df <- data.frame(
-  year = rep(1972:2021, 4),
+  year = rep(1973:2021, 4),
   value = c(st_nb[idx[1],], st_nb[idx[2],], st_nb[idx[3],], st_nb[idx[4],]),
   group = rep(c(   schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[1]])]
                    ,  schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[2]])]
                    ,  schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[3]])]
                    ,  schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[4]])]
-  ), each = length(1972:2021)
+  ), each = length(1973:2021)
   )
 )
 
 
 
-acf1 <- acf(df$value[1:50])
-acf2 <- acf(df$value[51:100])
-acf3 <- acf(df$value[101:150])
-acf4 <- acf(df$value[151:200])
+acf1 <- acf(df$value[1:49])
+acf2 <- acf(df$value[50:98])
+acf3 <- acf(df$value[99:147])
+acf4 <- acf(df$value[148:196])
 
 acf_to_df <- function(acf_object) {
   data.frame(
@@ -147,18 +149,22 @@ plot_acf <- function(acf_df, title, col = "skyblue") {
 
 p1 <- plot_acf(acf1_df, 
                schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[1]])],"red") +
+  ylim(c(-1,1)) +
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")   
 p2 <- plot_acf(acf2_df, 
                schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[2]])],"lightpink")+
+  ylim(c(-1,1)) +
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 p3 <- plot_acf(acf3_df, 
                schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[3]])],"lightblue")+
+  ylim(c(-1,1)) +
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 p4 <- plot_acf(acf4_df, 
                schools_name$INSTNM[which(schools_name$UNITID==schools$UNITID[idx[4]])],"lightgreen")+
+  ylim(c(-1,1)) +
   geom_hline(yintercept = 1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red") +  
   geom_hline(yintercept = -1.96/sqrt(ncol(schoolsM)), linetype = "dashed", color = "red")
 
@@ -171,27 +177,17 @@ n <- 100
 idx <- factor(sample(1:nrow(st_nb),n))
 
 df <- data.frame(
-  Year = rep(years, n),
+  Year = rep(years[-1], n),
   Counts = as.vector(t(st_nb[idx, ])),
-  group = rep(idx,each = length(years))
+  group = rep(idx,each = length(years) - 1)
 )
 
 ggplot(df, aes(x = Year, y = Counts, group = group)) +
   geom_line(color = "black", linewidth = 0.5, alpha = 0.15) +
   geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
   theme_bw() +
+  labs(y = "Residuals") +
   theme(legend.position = "none")
-
-
-
-resis_diff <- schoolsM[,46:50] - schoolsM[,45:49]
-dd <- matrix(rpois(length(schoolsM[,46:50]), schoolsM[,46:50]), nrow = nrow(schoolsM), ncol = 5)
-
-apply((resis_diff)^2, 2, mean)
-
-
-resis_ldiff <- log(schoolsM[,46:50]+1) - log(schoolsM[,45:49]+1)
-apply(resis_ldiff^2, 2, mean)
 
 
 
@@ -216,6 +212,7 @@ ggplot(df, aes(x = Year, y = Counts, color = group)) +
   geom_line(linewidth = 1.5) +
   scale_color_manual(values = c("lightpink", "lightblue")) +
   labs(color = "") +
+  theme_bw() +
   theme(legend.position = "bottom") +
   guides(color = guide_legend(nrow = 2))
 

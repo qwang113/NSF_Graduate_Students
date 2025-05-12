@@ -53,8 +53,8 @@ ingarch_low <- ingarch_pred[2,,]
 ensemble_up <- apply(ensemble_esn_samples, c(1,2), quantile, 1-alpha/2)
 ensemble_low <- apply(ensemble_esn_samples, c(1,2), quantile, alpha/2)
 
-all_mse <- matrix(NA, nrow = 7, ncol = 6)
-all_lmse <- matrix(NA, nrow = 7, ncol = 6)
+all_mse <- matrix(NA, nrow = 8, ncol = 6)
+all_lmse <- matrix(NA, nrow = 8, ncol = 6)
 IS <- matrix(NA, nrow = 5, ncol = 6)
 ICR <- matrix(NA, nrow = 5, ncol = 6)
 
@@ -89,22 +89,24 @@ all_interval_score <- function(prediction_sample, alpha = 0.05, true_x){
 for (i in 1:5) {
   curr_true <- schoolsM[,45+i]
   all_mse[1,i] <- mean((curr_true - apply(schoolsM[,(1:(44+i))],1,mean))^2)
-  all_mse[2,i] <- mean((ingarch_mean[i,] - curr_true)^2)  
-  all_mse[3,i] <- mean((single_esn_mean[i,] - curr_true)^2)
-  all_mse[4,i] <- mean((ensemble_esn_mean[i,] - curr_true)^2)
-  all_mse[5,i] <- mean((sep_mean[i,] - curr_true)^2)
-  all_mse[6,i] <- mean((int_mean[i,] - curr_true)^2)
-  all_mse[7,i] <- mean((randsl_mean[i,] - curr_true)^2)
+  all_mse[2,i] <- mean((curr_true - schoolsM[,44+i])^2)
+  all_mse[3,i] <- mean((ingarch_mean[i,] - curr_true)^2)  
+  all_mse[4,i] <- mean((single_esn_mean[i,] - curr_true)^2)
+  all_mse[5,i] <- mean((ensemble_esn_mean[i,] - curr_true)^2)
+  all_mse[6,i] <- mean((sep_mean[i,] - curr_true)^2)
+  all_mse[7,i] <- mean((int_mean[i,] - curr_true)^2)
+  all_mse[8,i] <- mean((randsl_mean[i,] - curr_true)^2)
   
   
   lg_curr_true <- log(curr_true+1)
   all_lmse[1,i] <- mean((lg_curr_true - apply(log(schoolsM[,(1:(44+i))]+1),1,mean))^2)
-  all_lmse[2,i] <- mean((log(ingarch_mean[i,]+1) - lg_curr_true)^2)  
-  all_lmse[3,i] <- mean((log(single_esn_mean[i,]+1) - lg_curr_true)^2)
-  all_lmse[4,i] <- mean((log(ensemble_esn_mean[i,]+1) - lg_curr_true)^2)
-  all_lmse[5,i] <- mean((log(sep_mean[i,]+1) - lg_curr_true)^2)
-  all_lmse[6,i] <- mean((log(int_mean[i,]+1) - lg_curr_true)^2)
-  all_lmse[7,i] <- mean((log(randsl_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[2,i] <- mean((log(curr_true+1) - log(schoolsM[,44+i]+1))^2)
+  all_lmse[3,i] <- mean((log(ingarch_mean[i,]+1) - lg_curr_true)^2)  
+  all_lmse[4,i] <- mean((log(single_esn_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[5,i] <- mean((log(ensemble_esn_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[6,i] <- mean((log(sep_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[7,i] <- mean((log(int_mean[i,]+1) - lg_curr_true)^2)
+  all_lmse[8,i] <- mean((log(randsl_mean[i,]+1) - lg_curr_true)^2)
   
   
   IS[1,i] <- mean(int_score(l = ingarch_low[i,], u = ingarch_up[i,], true_x = curr_true, alpha = alpha))
@@ -127,11 +129,18 @@ all_lmse[,ncol(all_mse)] <- apply(all_lmse[,-ncol(all_lmse)],1,mean)
 IS[,ncol(IS)] <- apply(IS[,-ncol(IS)],1,mean)
 ICR[,ncol(ICR)] <- apply(ICR[,-ncol(ICR)],1,mean)
 
-rownames(all_mse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
-rownames(all_lmse) <- c("Intercept","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
+all_mse <- cbind(all_mse,apply(all_mse[,1:5],1,sd))
+all_lmse <- cbind(all_lmse,apply(all_lmse[,1:5],1,sd))
+IS <- cbind(IS,apply(IS[,1:5],1,sd))
+ICR <- cbind(ICR,apply(ICR[,1:5],1,sd))
+
+
+
+rownames(all_mse) <- c("Intercept","Persistence","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
+rownames(all_lmse) <- c("Intercept","Persistence","INGARCH(1,1)","Single ESN","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
 rownames(IS) <- c("INGARCH(1,1)","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
 rownames(ICR) <- c("INGARCH(1,1)","Ensemble ESN","Bayesian Poisson ESN ","Bayesian Hierarchical NB ESN ","Bayesian Hierarchical Poisson ESN")
-colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- c(2017:2021,"5 Year Average")
+colnames(all_mse) <- colnames(all_lmse) <- colnames(IS) <- colnames(ICR) <- c(2017:2021,"Mean","SD")
 
 knitr::kable(all_mse, format = "latex", align = 'c',digits = 0)
 knitr::kable(all_lmse, format = "latex", align = 'c',digits = 3)

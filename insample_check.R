@@ -101,6 +101,7 @@ ggplot(df, aes(x = year, y = value, color = group)) +
   geom_line(linewidth = 1) +
   scale_color_manual(values = c("red", "lightpink", "lightblue", "lightgreen")) +
   labs(color = "", y = 'Residuals') +
+  theme_bw() +
   theme(legend.position = "bottom") +
   guides(color = guide_legend(nrow = 2))
 

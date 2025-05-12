@@ -23,7 +23,6 @@ df <- data.frame(
   )
 )
 
-
 # Plot with ggplot
 ggplot(df, aes(x = Year, y = Counts, color = group)) +
   geom_line(linewidth = 1.5) +

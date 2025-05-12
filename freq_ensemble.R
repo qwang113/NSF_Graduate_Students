@@ -56,7 +56,7 @@ for (years in years_to_pred) {
   n <- ncol(Yin)
   # Repeat the matrix and bind by rows
 
-  design_mat <- cbind(H$train_h)
+  design_mat <- cbind(H$train_h, as.vector(log(schoolsM[,1:(years-2)]+1)))
   
   # Input Data
   nh <- dim(H$train_h)[2]
@@ -67,13 +67,13 @@ for (years in years_to_pred) {
   # Frequentist - Integrated Model (Ensemble)----------------------------------------------------------------------------------------  
   for(j in 1:reps){
     H <- ESN_expansion(Xin = state_idx, Yin = Yin, Xpred = state_idx, nh=nh, nu=nu, aw=aw, pw=pw, au=au, pu=pu, eps = eps)
+    design_mat <- cbind(H$train_h, as.vector(log(schoolsM[,1:(years-2)]+1)))
     for (school_idx in 1:nrow(schoolsM)) {
-      
       curr_idx_h <- school_idx + (0:(years - 3))*nrow(schoolsM)
-      curr_H <- H$train_h[curr_idx_h,]
+      curr_H <- design_mat[curr_idx_h,]
       curr_y <- y_tr[curr_idx_h]
       fit_fesn <- glmnet(x = curr_H, y = curr_y, family = "poisson", alpha = 1, lambda = 1)
-      tmp_all_schools[school_idx] <- predict(fit_fesn, newx = H$pred_h[school_idx,], type = "response") 
+      tmp_all_schools[school_idx] <- predict(fit_fesn, newx = c(H$pred_h[school_idx,], log(schoolsM[school_idx,years-1]+1)), type = "response") 
     }
     pred_all_ensemble_esn[years - min(years_to_pred) + 1,,j] <- tmp_all_schools
     print(j)

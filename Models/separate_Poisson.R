@@ -47,8 +47,8 @@ years_to_pred <- 46:50
 sig_eta_inv = 10
 eps = 1 # Avoid underflow, avoid log(0)
 
-# ESN Parameters
-nh = 120
+# ESN Parameters by CV
+nh = 30
 all_nu = c(0.9,0.1,0.9,0.1,0.9)
 all_a = c(0.01,0.01,0.01,0.1,0.01)
 pw = pu = 0.1

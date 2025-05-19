@@ -52,7 +52,6 @@ for (i in 1:50) {
   return(list("DAT" = out, "NAschools" = unique(NA_sch)))
 }
 
-
 dat <- get_data("ft_tot_all_races_v", "ft_tot_all_races_v", "Race")
 ```
 
